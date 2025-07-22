@@ -1,0 +1,24 @@
+[project]
+name = "cdaweb-downloader"
+version = "0.1.0"
+description = "GUI and CLI to browse, filter, and download CDF files from NASA CDAWeb."
+authors = [{ name = "Your Name", email = "your.email@example.com" }]
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "xarray",
+    "numpy",
+    "cdflib",
+    "requests",
+    "beautifulsoup4",
+    "python-dateutil"
+]
+
+[project.scripts]
+cdaweb-downloader = "cdaweb_downloader.main:main"
+
+#[tool.setuptools]
+#packages = ["main", "downloader_gui", "utils", "cdf_handler"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
