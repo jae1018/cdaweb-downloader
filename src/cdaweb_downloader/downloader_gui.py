@@ -45,6 +45,17 @@ class CDAWebGUI(tk.Tk):
         date_range (tuple): Start and end datetime objects for download.
         file_url_sample (str): URL to the currently selected sample CDF.
         ds_sample (xarray.Dataset): Parsed sample CDF dataset.
+        
+    TO DO:
+    1) Add box-check button for selecting what var is time variable (or
+       find better way to automatically infer it from cdflib?)
+    2) Can sometimes have I/O mistakes at the end after downloading all the
+        data... might be better to save first downloaded dataset as temp
+        file or something and if see error occurs so that issues are caught
+        early. If safe, then download everything after
+    3) Handle data types (e.g. int16, float32) better - some are getting
+       accidentally promoted (int32 -> float32) when merging leading to
+       ballooning memory costs
     """
     
     DEFAULT_URL = "https://cdaweb.gsfc.nasa.gov/pub/data/"

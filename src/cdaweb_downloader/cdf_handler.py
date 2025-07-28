@@ -18,11 +18,33 @@ def load_cdf_from_url(url):
 def subset_dataset(ds, variable_list):
     return ds[variable_list]
 
-def merge_datasets(datasets):
-    dim = "Epoch" if "Epoch" in datasets[0].dims else "time"
+def merge_datasets(
+        datasets : list[xr.Dataset]
+) -> xr.Dataset:
+    """
+    Merges a list of xarray datasets based on the time dimension. Currently,
+    time_dim is assumed to be one of ("Epoch", "time", "epoch")
+    
+    Parameters
+    ----------
+    datasets : list of xarray datasets
+        List of xarray datasets to merge in time (and all should at minimum
+        contain the same time_dim coordiante name)
+    
+    Returns
+    -------
+    xarray dataset
+    
+    TO DO:
+    ------
+    Better time_dim inferring
+    """
+    possible_time_strs = ("Epoch", "time", "epoch")
+    time_dim = next((d for d in possible_time_strs if d in datasets[0].dims), "time")
+    #dim = "Epoch" if "Epoch" in datasets[0].dims else "time"
     # Clean conflicting attrs (e.g. 'units') on time dimension
     for ds in datasets:
-        time_dim = "Epoch" if "Epoch" in ds.dims else "time"
+        #time_dim = "Epoch" if "Epoch" in ds.dims else "time"
         if time_dim in ds.coords:
             ds[time_dim].attrs = {}  # Clear potentially conflicting encoding attrs
-    return xr.concat(datasets, dim=dim)
+    return xr.concat(datasets, dim=time_dim)

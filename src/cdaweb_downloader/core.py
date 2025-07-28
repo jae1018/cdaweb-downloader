@@ -3,6 +3,7 @@ Core logic for downloading and merging CDF files from CDAWeb.
 """
 
 from datetime import datetime
+from dateutil.parser import parse as date_parse
 from .cdf_handler import load_cdf_from_url, subset_dataset, merge_datasets
 from .utils import list_dir, extract_date_from_filename
 import xarray as xr
@@ -17,12 +18,24 @@ class CDAWebDownloader:
         """
         self.base_url = base_url.rstrip("/")
 
-    def download_and_merge(self, start_date, end_date, selected_variables) -> xr.Dataset:
+    def download_and_merge(
+            self, 
+            start_date : datetime | str, 
+            end_date   : datetime | str, 
+            selected_variables : list[str]
+    ) -> xr.Dataset:
         """
         Downloads and merges .CDF files across multiple year folders
         if their dates fall within the given range.
+        
+        Parameters
+        ----------
+        start_date : datetime.datetime (or str to be converted)
         """
         datasets = []
+        
+        if isinstance(start_date, str): start_date = date_parse(start_date)
+        if isinstance(end_date, str): end_date = date_parse(end_date)
 
         for year in range(start_date.year, end_date.year + 1):
             year_url = f"{self.base_url}/{year}/"
