@@ -1,5 +1,15 @@
 """
 Core logic for downloading and merging CDF files from CDAWeb.
+
+Notes to self for later implementation:
+1) Would eventually like automatically detect time coordinate(s) and align
+   datasets based on that. For datasets with just 1 time dim, will probably
+   be pretty easy, however some missions have multiple time coordinates
+   in their cdfs (such as THEMIS, which records at a variety of resolutions).
+   Moreover, sometimes the time dimensions do not have consistent names!
+   (My experience was when looking at reduced (~3s) and full (96s/384s)
+   that sometimes the reduced time name was 'record1' and other times
+   it was 'record2'! ).
 """
 
 from datetime import datetime
