@@ -81,6 +81,7 @@ class CDAWebGUI(tk.Tk):
         self.date_range = None
         self.file_url_sample = None
         self.ds_sample = None
+        self.output_dir = None
 
         self.build_widgets()
         self.update_listing()
@@ -330,6 +331,7 @@ class CDAWebGUI(tk.Tk):
         result_label = tk.Label(win, text="")
         result_label.pack()
 
+        """
         def estimate():
             try:
                 s = date_parse(start_entry.get())
@@ -345,15 +347,21 @@ class CDAWebGUI(tk.Tk):
                 result_label.config(text=f"Estimated download: ~{total:.2f} {unit}")
             except Exception as e:
                 messagebox.showerror("Date Error", str(e))
+        """
 
         def next_step():
+            s = date_parse(start_entry.get())
+            e = date_parse(end_entry.get())
+            if e < s:
+                raise ValueError("End before start")
+            self.date_range = (s, e)
             if self.date_range is None:
                 messagebox.showwarning("Estimate First", "Please estimate first.")
                 return
             win.destroy()
             self.show_local_save_dialog()
 
-        tk.Button(win, text="Estimate", command=estimate).pack(pady=5)
+        #tk.Button(win, text="Estimate", command=estimate).pack(pady=5)
         tk.Button(win, text="Next: Save", command=next_step).pack(pady=10)
 
     def show_local_save_dialog(self):
@@ -362,9 +370,10 @@ class CDAWebGUI(tk.Tk):
     
         Then initiates the download and merge process.
         """
-        folder = filedialog.askdirectory(title="Choose Folder to Save .nc File")
-        if not folder:
+        self.output_dir = filedialog.askdirectory(title="Choose folder to save downloaded netcdfs")
+        if not self.output_dir:
             return
+        """
         filename = filedialog.asksaveasfilename(
             title="Enter Output .nc File Name",
             defaultextension=".nc",
@@ -372,21 +381,24 @@ class CDAWebGUI(tk.Tk):
         )
         if not filename:
             return
-        self.download_and_merge_cdfs(filename)
-
-    def download_and_merge_cdfs(self, output_path):
         """
-        Downloads and merges selected variables over the specified date range,
-        then saves the result as a .nc file.
-    
-        Args:
-            output_path (str): Filepath to save the merged NetCDF file
+        self.download_and_merge_cdfs()
+
+    def download_and_merge_cdfs(self):
+        """
+        Downloads and saved selected variables over the specified date range
+        for each cdf in range.
         """
         try:
             s, e = self.date_range
-            ds = self.downloader.download_and_merge(s, e, self.selected_variables)
-            ds.to_netcdf(output_path)
-            messagebox.showinfo("Saved", f"Saved to: {output_path}")
+            self.downloader.download_and_save_multiple_cdfs(
+                        start_date = s, 
+                        end_date   = e,
+                        selected_variables = self.selected_variables,
+                        output_dir = self.output_dir
+            )
+            #ds.to_netcdf(output_path)
+            #messagebox.showinfo("Saved", f"Saved to: {output_path}")
         except Exception as e:
             messagebox.showerror("Download Error", str(e))
 
