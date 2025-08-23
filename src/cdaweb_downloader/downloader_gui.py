@@ -29,6 +29,8 @@ def run_gui():
     app.mainloop()
 
 
+
+
 class CDAWebGUI(tk.Tk):
     
     """
@@ -184,34 +186,119 @@ class CDAWebGUI(tk.Tk):
         text.insert(tk.END, str(ds))
         text.config(state=tk.DISABLED)
     
-        # RIGHT: Variables checklist inside a scrollable canvas
+        # RIGHT: Variables checklist with count, preview toggle, filter, and select/deselect listed
         checklist_container = tk.Frame(win)
-        checklist_container.pack(side='right', fill='both', expand=False, padx=10, pady=10)
-    
+        checklist_container.pack(side='right', fill='both', expand=True, padx=10, pady=10)
+        
         checklist_frame = tk.LabelFrame(checklist_container, text="Variables to Keep")
         checklist_frame.pack(fill='both', expand=True)
-    
+        
+        # --- Header row: selected-count + preview toggle (affects LEFT preview) ---
+        header = tk.Frame(checklist_frame)
+        header.pack(fill='x', padx=5, pady=(6, 2))
+        
+        selected_count_label = tk.Label(header, text="0 variables selected")
+        selected_count_label.pack(side='left')
+        
+        preview_selected_only_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(
+            header, text="Preview selected only",
+            variable=preview_selected_only_var
+        ).pack(side='right')
+        
+        # --- Top controls: Filter + buttons ---
+        top_controls = tk.Frame(checklist_frame)
+        top_controls.pack(fill='x', padx=5, pady=5)
+        
+        tk.Label(top_controls, text="Filter:").pack(side='left')
+        filter_var = tk.StringVar(value="")
+        tk.Entry(top_controls, textvariable=filter_var, width=24).pack(side='left', padx=(6, 10))
+        
+        btn_select = tk.Button(top_controls, text="Select Listed")
+        btn_deselect = tk.Button(top_controls, text="De-select Listed")
+        btn_select.pack(side='left', padx=2)
+        btn_deselect.pack(side='left', padx=2)
+        
+        # --- Scrollable area for the checkboxes (reuses your Canvas pattern) ---
         canvas = tk.Canvas(checklist_frame, height=400)
         scrollbar = tk.Scrollbar(checklist_frame, orient="vertical", command=canvas.yview)
         scrollable_frame = tk.Frame(canvas)
-    
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-    
+        
+        scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
-    
+        
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
-    
-        # Variable selection checkboxes
-        var_vars = {var: tk.BooleanVar(value=True) for var in ds.data_vars}
-        for var, v in var_vars.items():
-            tk.Checkbutton(scrollable_frame, text=var, variable=v).pack(anchor='w')
-    
-        # Button BELOW checklist
+        
+        # --- State + logic ---
+        all_vars = list(ds.data_vars)
+        
+        # Default: all DE-selected
+        var_vars = {var: tk.BooleanVar(value=False) for var in all_vars}
+        
+        def update_selected_count_label():
+            n = sum(1 for v in var_vars.values() if v.get())
+            selected_count_label.config(text=f"{n} variable{'s' if n != 1 else ''} selected")
+        
+        def update_preview():
+            # LEFT preview reflects either the full ds or only selected variables
+            if preview_selected_only_var.get():
+                chosen = [k for k, v in var_vars.items() if v.get()]
+                subset = ds[chosen] if chosen else xr.Dataset()
+            else:
+                subset = ds
+            text.config(state=tk.NORMAL)
+            text.delete("1.0", tk.END)
+            text.insert(tk.END, str(subset))
+            text.config(state=tk.DISABLED)
+        
+        def update_ui():
+            update_selected_count_label()
+            update_preview()
+        
+        # Keep references to visible (filtered) widgets
+        check_widgets = {}  # var_name -> Checkbutton
+        
+        def rebuild_checklist():
+            # Clear existing
+            for w in scrollable_frame.winfo_children():
+                w.destroy()
+            check_widgets.clear()
+        
+            q = filter_var.get().strip().lower()
+            for var in all_vars:
+                if q and q not in var.lower():
+                    continue
+                cb = tk.Checkbutton(
+                    scrollable_frame, text=var, variable=var_vars[var],
+                    anchor='w', justify='left', command=update_ui  # update when toggled
+                )
+                cb.pack(fill='x', anchor='w')
+                check_widgets[var] = cb
+        
+            # Keep UI in sync after rebuilding (e.g., after filter change)
+            update_ui()
+        
+        def select_listed():
+            for var in check_widgets.keys():
+                var_vars[var].set(True)
+            update_ui()
+        
+        def deselect_listed():
+            for var in check_widgets.keys():
+                var_vars[var].set(False)
+            update_ui()
+        
+        btn_select.configure(command=select_listed)
+        btn_deselect.configure(command=deselect_listed)
+        filter_var.trace_add("write", lambda *_: rebuild_checklist())
+        preview_selected_only_var.trace_add("write", lambda *_: update_ui())
+        
+        # Initial render
+        rebuild_checklist()
+        
+        # --- Bottom: Next button (unchanged API, now reads var_vars) ---
         def go_to_step2():
             self.selected_variables = [k for k, v in var_vars.items() if v.get()]
             if not self.selected_variables:
@@ -219,7 +306,7 @@ class CDAWebGUI(tk.Tk):
                 return
             win.destroy()
             self.show_date_range_window()
-    
+        
         tk.Button(checklist_container, text="Next: Choose Date Range", command=go_to_step2).pack(pady=10)
 
     def show_date_range_window(self):
