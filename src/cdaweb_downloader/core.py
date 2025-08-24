@@ -10,6 +10,15 @@ Notes to self for later implementation:
    (My experience was when looking at reduced (~3s) and full (96s/384s)
    that sometimes the reduced time name was 'record1' and other times
    it was 'record2'! ).
+2) When implementing (1), be aware the cdflib.cdf_to_xarray ca only make
+   data vars, coords, and dims based on data present with the given cdf.
+   So if a particular cdf has bad data (such that much or all of it may
+   be missing), then the corresponding coords and dims for such data may
+   also not be present. Downstream xarray functions like concat, join, merge
+   may not work (as intended, if at all) if some of those coords / dims are
+   missing! It will likely be necessary to look over a list of downlaoded
+   datasets and consider the "union" of all coords and dims , then remove
+   datasets from the list that do not match this list of coords / dims.
 """
 
 from datetime import datetime
