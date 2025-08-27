@@ -19,6 +19,14 @@ Notes to self for later implementation:
    missing! It will likely be necessary to look over a list of downlaoded
    datasets and consider the "union" of all coords and dims , then remove
    datasets from the list that do not match this list of coords / dims.
+3) When estimating overall download size, should also provide an option
+   to recast types  and re-calculate download sizes accordingly. Should
+   also then put a note about max bounds for float64, 32, 16 AS WELL AS
+   what that corresponds to for log10 scaling - I think it's like this:
+   Handy logs (overflow points for 10**y):
+       float16: y ≳ 4.815 overflows;
+       float32: y ≳ 38.53 overflows;
+       float64: y ≳ 308.2547 overflows.
 """
 
 from datetime import datetime
