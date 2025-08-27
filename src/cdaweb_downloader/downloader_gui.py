@@ -306,9 +306,182 @@ class CDAWebGUI(tk.Tk):
                 messagebox.showwarning("Selection Error", "Select at least one variable.")
                 return
             win.destroy()
-            self.show_date_range_window()
+            self.show_dtype_selection_window()
         
-        tk.Button(checklist_container, text="Next: Choose Date Range", command=go_to_step2).pack(pady=10)
+        tk.Button(checklist_container, text="Next: Choose Data Types", command=go_to_step2).pack(pady=10)
+        
+    
+    def _collect_dependent_coords(ds, selected_vars):
+        """
+        Return a sorted list of coordinate names that the selected variables
+        *actually* depend on. We include:
+          - all coords attached to each selected DataArray (da.coords)
+          - index coords for each dimension (if present in ds.coords)
+    
+        This avoids pulling in unrelated coords from the dataset.
+        """
+        deps = set()
+        for v in selected_vars:
+            if v not in ds:
+                continue
+            da = ds[v]
+            # coords explicitly attached to the DataArray
+            for c in da.coords:
+                if c in ds.coords:
+                    deps.add(c)
+            # index coords for dimensions (e.g., 'Epoch', 'time', energy axes, etc.)
+            for d in da.dims:
+                if d in ds.coords:
+                    deps.add(d)
+        # stable order
+        return sorted(deps)
+    
+    
+    
+    def show_dtype_selection_window(self):
+        """
+        Opens a window allowing the user to override default dtypes for their
+        previously selected variables, while previewing the subsetted dataset.
+    
+        Displays:
+          - LEFT: Text preview of xarray.Dataset subset to the selected variables.
+          - RIGHT: A scrollable list of variables with radio buttons to select new dtypes,
+                   grouped as "Data Variables" and "Coordinates".
+          - TOP: A warning block about dtype precision/overflow limits.
+    
+        Stores results in `self.selected_dtypes`.
+        """
+        if self.ds_sample is None or not self.selected_variables:
+            messagebox.showerror("Error", "No dataset or variables selected.")
+            return
+    
+        win = tk.Toplevel(self)
+        win.title("Step 2: Choose Data Types")
+        win.geometry("1100x750")
+    
+        # -------------------------------
+        # Layout container: left + right
+        # -------------------------------
+        container = tk.Frame(win)
+        container.pack(fill="both", expand=True, padx=10, pady=10)
+    
+        # -------------------------------
+        # LEFT PANEL: Dataset preview
+        # -------------------------------
+        preview_frame = tk.Frame(container, width=450)
+        preview_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
+    
+        tk.Label(preview_frame, text="Dataset Preview (selected variables only):",
+                 font=("TkDefaultFont", 10, "bold")).pack(anchor="w")
+    
+        text_preview = scrolledtext.ScrolledText(preview_frame, wrap=tk.WORD, width=60)
+        text_preview.pack(fill="both", expand=True, padx=5, pady=5)
+    
+        # Subset the dataset to only selected variables for the preview
+        subset_ds = self.ds_sample[self.selected_variables]
+        text_preview.insert(tk.END, str(subset_ds))
+        text_preview.config(state=tk.DISABLED)
+    
+        # -------------------------------
+        # RIGHT PANEL: Dtype selection
+        # -------------------------------
+        right_panel = tk.Frame(container)
+        right_panel.pack(side="right", fill="both", expand=True)
+    
+        # Warning text block
+        tk.Label(
+            right_panel,
+            text=(
+                "Select desired data types for each variable (defaults are pre-selected).\n"
+                "DATA TYPE LIMITS:\n"
+                "⚠ Float32 can overflow near ~10^38 (≈log10=38.53).\n"
+                "⚠ Float64 can overflow near ~10^308 (≈log10=308.25).\n"
+                "⚠ Int32 range: ±2.1e9.\n"
+                "⚠ Int64 range: ±9.2e18."
+            ),
+            justify="left",
+            fg="orange"
+        ).pack(anchor="w", pady=(0, 5))
+    
+        # -------- Single scrollable area for BOTH groups (only one scrollbar) --------
+        canvas = tk.Canvas(right_panel, height=500)
+        scrollbar = tk.Scrollbar(right_panel, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas)
+    
+        scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+    
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+    
+        # -------------------------------
+        # Dtype options and storage
+        # -------------------------------
+        dtype_options = ["float32", "float64", "int32", "int64"]
+        self.selected_dtypes = {}
+    
+        # Prepare group lists
+        data_vars = list(self.selected_variables)
+        coords = CDAWebGUI._collect_dependent_coords(self.ds_sample, self.selected_variables)
+    
+        # Compute a pleasant width for the name column; use fixed font for neat alignment
+        all_names = data_vars + coords if (data_vars or coords) else ["(none)"]
+        max_name_len = max(len(n) for n in all_names)
+        name_col_chars = min(max_name_len + 2, 48)  # cap so it doesn't get huge
+    
+        def render_group(parent, title, names):
+            """Render one group (Data Variables / Coordinates) as a tidy grid without column headers."""
+            if not names:
+                return
+        
+            group = tk.LabelFrame(parent, text=title, padx=8, pady=6)
+            group.pack(fill="x", expand=True, pady=(10, 6))
+        
+            # Grid: col 0 = name, cols 1..4 = radio buttons (with text labels)
+            group.grid_columnconfigure(0, weight=1)  # name column stretches a bit
+            for c in range(1, 5):
+                group.grid_columnconfigure(c, weight=0, minsize=84)  # keep columns aligned
+        
+            name_font = ("TkFixedFont", 16)
+        
+            # Rows (no header row)
+            r = 0
+            for name in names:
+                if name not in self.ds_sample:
+                    continue
+        
+                current_dtype = str(self.ds_sample[name].dtype)
+                default_choice = current_dtype if current_dtype in dtype_options else "float32"
+                self.selected_dtypes[name] = tk.StringVar(value=default_choice)
+        
+                tk.Label(
+                    group, text=name, font=name_font, anchor="w", width=name_col_chars
+                ).grid(row=r, column=0, sticky="w", padx=(2, 6), pady=3)
+        
+                # Radio buttons with their own text (float32/float64/int32/int64)
+                for c, dtype in enumerate(dtype_options, start=1):
+                    tk.Radiobutton(
+                        group, text=dtype, value=dtype, variable=self.selected_dtypes[name]
+                    ).grid(row=r, column=c, sticky="w", padx=6, pady=3)
+        
+                r += 1
+    
+        # Render groups inside the one scrollable frame
+        render_group(scrollable_frame, "Data Variables", data_vars)
+        render_group(scrollable_frame, "Coordinates", coords)
+    
+        # -------------------------------
+        # NEXT BUTTON
+        # -------------------------------
+        def proceed():
+            # Convert Tk variables into a plain dict
+            self.selected_dtypes = {k: v.get() for k, v in self.selected_dtypes.items()}
+            win.destroy()
+            self.show_date_range_window()
+    
+        tk.Button(win, text="Next: Choose Date Range", command=proceed).pack(pady=10)
+    
 
     def show_date_range_window(self):
         """
@@ -395,7 +568,8 @@ class CDAWebGUI(tk.Tk):
                         start_date = s, 
                         end_date   = e,
                         selected_variables = self.selected_variables,
-                        output_dir = self.output_dir
+                        output_dir = self.output_dir,
+                        dtypes = self.selected_dtypes
             )
             #ds.to_netcdf(output_path)
             #messagebox.showinfo("Saved", f"Saved to: {output_path}")

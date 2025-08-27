@@ -19,14 +19,6 @@ Notes to self for later implementation:
    missing! It will likely be necessary to look over a list of downlaoded
    datasets and consider the "union" of all coords and dims , then remove
    datasets from the list that do not match this list of coords / dims.
-3) When estimating overall download size, should also provide an option
-   to recast types  and re-calculate download sizes accordingly. Should
-   also then put a note about max bounds for float64, 32, 16 AS WELL AS
-   what that corresponds to for log10 scaling - I think it's like this:
-   Handy logs (overflow points for 10**y):
-       float16: y ≳ 4.815 overflows;
-       float32: y ≳ 38.53 overflows;
-       float64: y ≳ 308.2547 overflows.
 """
 
 from datetime import datetime
@@ -48,54 +40,88 @@ class CDAWebDownloader:
         self.base_url = base_url.rstrip("/")
     
     def _download_and_save_single_cdf(
-            self,
-            url : str,
-            selected_variables : list[str],
-            output_dir      : Path
+        self,
+        url: str,
+        selected_variables: list[str],
+        output_dir: Path,
+        dtypes: dict[str, str] | None = None  # <-- NEW: optional dict of {var_name: dtype_str}
     ) -> None:
-        
         """
         Downloads a single cdf from CDAWeb, filters it based on the
-        selected_variables parameters, and then saved it to output_folder
-        (using the same filename as the original file).
+        selected_variables parameters, applies optional dtype casting,
+        and then saves it to output_folder (using the same filename as the original file).
         
         PARAMETERS
         ----------
         url : str
-            Exact link to the cdf to download
+            Exact link to the cdf to download.
         selected_variables : list of strs
-            List of data variable names in the cdf to keep
+            List of data variable names in the cdf to keep.
         output_dir : Path
-            Path object to desired output folder for the cdf
-        
+            Path object to desired output folder for the cdf.
+        dtypes : dict, optional
+            Mapping from variable name → dtype string (e.g. {"var1": "float32"}).
+            If None, defaults to existing data types.
+    
         RETURNS
         -------
         None
         """
-        
+    
         print(f"Downloading {url}")
+    
+        # Load the dataset from the provided CDF URL
         ds, _ = load_cdf_from_url(url)
+    
+        # Keep only the requested variables
         subset = subset_dataset(ds, selected_variables)
-        
-        
-        ## get rid of "units" in attrs (can cause issues with saving netcdf)
-        # do that for each data var ...
+    
+        # -------------------------------
+        # NEW: Apply custom dtype casting
+        # -------------------------------
+        if dtypes:
+            print("Applying user-selected dtypes to variables and coordinates...")
+            for name, dtype in dtypes.items():
+                # Data variables
+                if name in subset.data_vars:
+                    current_dtype = str(subset[name].dtype)
+                    try:
+                        subset[name] = subset[name].astype(dtype)
+                        print(f"  ✔ var {name}: {current_dtype} → {dtype}")
+                    except Exception as e:
+                        print(f"  ⚠ WARNING: failed to cast var '{name}' ({current_dtype} → {dtype}): {e}")
+                # Coordinates
+                elif name in subset.coords:
+                    current_dtype = str(subset.coords[name].dtype)
+                    try:
+                        subset = subset.assign_coords({name: subset.coords[name].astype(dtype)})
+                        print(f"  ✔ coord {name}: {current_dtype} → {dtype}")
+                    except Exception as e:
+                        print(f"  ⚠ WARNING: failed to cast coord '{name}' ({current_dtype} → {dtype}): {e}")
+                else:
+                    print(f"  ⚠ Skipping '{name}' — not found among vars or coords in subset.")
+        else:
+            print("No custom dtypes provided — using default data types.")
+    
+        # Collapse attributes into JSON-safe strings (avoids NetCDF serialization issues)
         subset = collapse_all_attrs_to_json(subset)
+    
         """
+        # OLD ATTR STRIP LOGIC (kept for reference)
         for var in subset.data_vars:
             subset[var].attrs.pop("units", None)
-        # ... as well as each data coord
         for var in subset.coords:
             subset[var].attrs.pop("units", None)
-        subset.attrs 
+        subset.attrs
         """
-        
-        # save cdf as netcdf with same filename from url
+    
+        # Save CDF as NetCDF with the same filename from URL but new extension
         filepath = output_dir / Path(url).name
-        # and change ending from .cdf to .nc
-        filepath = filepath.parent / filepath.name.replace(filepath.suffix,'.nc')
-        print(f"Saved dataset at {filepath}")
+        filepath = filepath.parent / filepath.name.replace(filepath.suffix, '.nc')
+    
+        # Final save step
         subset.to_netcdf(filepath)
+        print(f"Saved dataset at {filepath}")
         
         
 
@@ -104,6 +130,7 @@ class CDAWebDownloader:
             start_date : datetime | str, 
             end_date   : datetime | str, 
             selected_variables : list[str],
+            dtypes : dict[str, str] = None,
             output_dir : str | None = None
     ) -> Path:
         """
@@ -152,7 +179,8 @@ class CDAWebDownloader:
                     self._download_and_save_single_cdf(
                                 url, 
                                 selected_variables, 
-                                out_dir
+                                out_dir,
+                                dtypes = dtypes
                     )
 
                 # ... and print exception if fails
