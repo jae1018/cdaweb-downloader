@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 from dateutil.parser import parse as date_parse
 import xarray as xr
 from pathlib import Path
+import time
 
 from .utils import list_dir, get_instrument_base_url
 from .cdf_handler import load_cdf_from_url
@@ -674,12 +675,28 @@ class CDAWebGUI(tk.Tk):
             progress["value"] = 0
             prog_win.update()
     
+            # record start time for ETA calculation
+            start_time = time.perf_counter()
+    
             # --- Wrapper to update progress each iteration ---
             def progress_callback(done, total):
+                elapsed = time.perf_counter() - start_time
+                avg_time = elapsed / done if done > 0 else 0
+                remaining = avg_time * (total - done)
+    
+                # format ETA
+                mins, secs = divmod(int(remaining), 60)
+                hrs, mins = divmod(mins, 60)
+                if hrs > 0:
+                    eta_str = f"ETA: {hrs:d}h {mins:02d}m {secs:02d}s"
+                else:
+                    eta_str = f"ETA: {mins:02d}m {secs:02d}s"
+    
+                # update GUI
                 progress["maximum"] = total
                 progress["value"] = done
-                prog_label.config(text=f"Downloaded {done} / {total} files")
-                prog_win.update()  # <-- ensures Tk processes pending redraws
+                prog_label.config(text=f"Downloaded {done} / {total} files   {eta_str}")
+                prog_win.update()
     
             # Perform downloads with progress updates
             cdf_folder = self.downloader.download_and_save_multiple_cdfs(

@@ -4,6 +4,7 @@ Core logic for downloading and merging CDF files from CDAWeb.
 Notes to self for later implementation:
   1) When convertable data-types is shown for data vars and coords, it also
      offers to convert strs to numeric type - this should not be permitted!
+     Also, be aware of datetime data types
 """
 
 from datetime import datetime
