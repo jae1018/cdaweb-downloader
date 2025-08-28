@@ -19,6 +19,8 @@ from .cdf_handler import load_cdf_from_url
 from .core import CDAWebDownloader
 from .codegen import generate_script
 import xarray as xr
+from pathlib import Path
+
 
 
 def run_gui():
@@ -27,7 +29,6 @@ def run_gui():
     """
     app = CDAWebGUI()
     app.mainloop()
-
 
 
 
@@ -110,7 +111,7 @@ class CDAWebGUI(tk.Tk):
         scrollbar.pack(side='right', fill='y')
         self.listbox.config(yscrollcommand=scrollbar.set)
 
-        tk.Button(self, text="Generate Python Script Only", command=self.generate_script_only).pack(pady=10)
+        #tk.Button(self, text="Generate Python Script Only", command=self.generate_script_only).pack(pady=10)
         
     def navigate_up(self):
         """
@@ -169,6 +170,18 @@ class CDAWebGUI(tk.Tk):
             self.show_dataset_selector(ds)
         except Exception as e:
             messagebox.showerror("CDF Error", str(e))
+            
+        
+    def estimate_merge_memory(self, start_date, end_date) -> float:
+        """
+        Estimate memory (in GB) required for merging datasets.
+        Uses reference file size from the sample dataset × number of days × 2.
+        """
+        days = (end_date - start_date).days + 1
+        total_mb = days * self.reference_file_size * 2   # 2× factor for merging
+        return total_mb / 1024.0   # return in GB
+        
+
 
     def show_dataset_selector(self, ds):
         """
@@ -526,36 +539,96 @@ class CDAWebGUI(tk.Tk):
             s = date_parse(start_entry.get())
             e = date_parse(end_entry.get())
             if e < s:
-                raise ValueError("End before start")
+                messagebox.showerror("Date Error", "End date is before start date.")
             self.date_range = (s, e)
             if self.date_range is None:
                 messagebox.showwarning("Estimate First", "Please estimate first.")
                 return
             win.destroy()
-            self.show_local_save_dialog()
+            self.show_merge_option_window()
 
         #tk.Button(win, text="Estimate", command=estimate).pack(pady=5)
-        tk.Button(win, text="Next: Save", command=next_step).pack(pady=10)
+        tk.Button(win, text="Next: Specify if merging", command=next_step).pack(pady=10)
+    
+    
+    def show_merge_option_window(self):
+        """
+        Asks the user if they want to merge datasets after downloading.
+        Also provides a memory usage estimate.
+        """
+        s, e = self.date_range
+        est_gb = self.estimate_merge_memory(s, e)
+    
+        win = tk.Toplevel(self)
+        win.title("Merge Option")
+        win.geometry("400x200")
+    
+        tk.Label(
+            win,
+            text=(
+                f"Merging datasets requires about 2x the memory of all "
+                f"datasets to be loaded (or roughly, ~{self.reference_file_size:.2f} "
+                f"MB * {(e-s).days+1} days * ~2 = ~{est_gb:.2f} GB of RAM).\n"
+                "Do you want to merge all datasets after downloading?"
+            ),
+            justify="left", wraplength=350
+        ).pack(pady=10)
+    
+        def choose_merge(do_merge: bool):
+            self.merge_after_download = do_merge
+            win.destroy()
+            self.show_local_save_dialog()
+    
+        tk.Button(
+            win, 
+            text="Yes, Merge", 
+            command=lambda: choose_merge(True)).pack(side="left", padx=20, pady=20
+        )
+        tk.Button(
+            win, 
+            text="No, Keep Separate", 
+            command=lambda: choose_merge(False)).pack(side="right", padx=20, pady=20
+        )
+    
 
+                                                      
     def show_local_save_dialog(self):
         """
-        Prompts the user for a folder and filename to save the merged NetCDF file locally.
-    
-        Then initiates the download and merge process.
+        Prompts the user for a folder to save the downloaded NetCDF files.
+        Then asks if they want to generate a script before starting the download.
         """
-        self.output_dir = filedialog.askdirectory(title="Choose folder to save downloaded netcdfs")
+        messagebox.showinfo(
+            "Select Save Folder",
+            "Please choose the folder where downloaded NetCDF files will be saved."
+        )
+        self.output_dir = filedialog.askdirectory()
         if not self.output_dir:
             return
-        """
-        filename = filedialog.asksaveasfilename(
-            title="Enter Output .nc File Name",
-            defaultextension=".nc",
-            filetypes=[("NetCDF Files", "*.nc")]
-        )
-        if not filename:
-            return
-        """
+    
+        # After choosing output folder, ask if they want a script
+        if messagebox.askyesno("Generate Script", "Do you want to generate a script for this configuration?"):
+            output_path = filedialog.asksaveasfilename(
+                title="Choose Where to Save Script",
+                defaultextension=".py",
+                filetypes=[("Python Files", "*.py")]
+            )
+            if output_path:
+                code = generate_script(
+                    base_url=self.base_url,
+                    start_date=self.date_range[0],
+                    end_date=self.date_range[1],
+                    variables=self.selected_variables,
+                    output_dir="<your_output_file.nc>",   # placeholder
+                    dtypes=self.selected_dtypes
+                )
+                with open(output_path, "w") as f:
+                    f.write(code)
+                messagebox.showinfo("Script Saved", f"Script written to: {output_path}")
+    
+        # Start the download (script written or not)
         self.download_and_merge_cdfs()
+
+
 
     def download_and_merge_cdfs(self):
         """
@@ -563,49 +636,28 @@ class CDAWebGUI(tk.Tk):
         for each cdf in range.
         """
         try:
+            # first download all cdfs
             s, e = self.date_range
-            self.downloader.download_and_save_multiple_cdfs(
-                        start_date = s, 
-                        end_date   = e,
-                        selected_variables = self.selected_variables,
-                        output_dir = self.output_dir,
-                        dtypes = self.selected_dtypes
+            cdf_folder = self.downloader.download_and_save_multiple_cdfs(
+                                start_date = s, 
+                                end_date   = e,
+                                selected_variables = self.selected_variables,
+                                output_dir = self.output_dir,
+                                dtypes = self.selected_dtypes
             )
-            #ds.to_netcdf(output_path)
-            #messagebox.showinfo("Saved", f"Saved to: {output_path}")
+            
+            # then merge if user requested
+            if self.merge_after_download:
+                merged_ds_path = self.downloader.merge_downloaded_datasets(cdf_folder)
+                messagebox.showinfo("Merged dataset saved", 
+                                    f"Saved to: {merged_ds_path}")
+                print(f"Final merged dataset saved at {merged_ds_path}")
+
+            # End program here (idk what happens if exception encountered tho)            
+            self.quit()
+            self.destroy()
+        
+        # Show error if downloads messed up somehow
         except Exception as e:
             messagebox.showerror("Download Error", str(e))
-
-    def generate_script_only(self):
-        """
-        Prompts user for a location to save a Python script that replicates the current download config.
-    
-        The script will use the current base URL, selected date range, and chosen variables.
-        """
-        try:
-            if self.date_range is None or not self.selected_variables or self.file_url_sample is None:
-                messagebox.showwarning("Missing Info", "You must select a sample CDF, variables, and a date range first.")
-                return
-
-            output_path = filedialog.asksaveasfilename(
-                title="Choose Where to Save Script",
-                defaultextension=".py",
-                filetypes=[("Python Files", "*.py")]
-            )
-            if not output_path:
-                return
-
-            code = generate_script(
-                base_url=self.base_url,
-                start_date=self.date_range[0],
-                end_date=self.date_range[1],
-                variables=self.selected_variables,
-                output_path="<your_output_file.nc>"  # Placeholder the user can change
-            )
-            with open(output_path, "w") as f:
-                f.write(code)
-    
-            messagebox.showinfo("Script Saved", f"Script written to: {output_path}")
-        except Exception as e:
-            messagebox.showerror("Script Generation Error", str(e))
 

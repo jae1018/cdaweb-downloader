@@ -5,12 +5,23 @@ Generates a short Python script that uses the CDAWebDownloader
 class to download and merge CDF data from NASA CDAWeb.
 """
 
+from pathlib import Path
 from datetime import datetime
 
-def generate_script(base_url, start_date, end_date, variables, output_path, dtypes: dict | None = None):
+
+def generate_script(
+    base_url: Path,
+    start_date: datetime,
+    end_date: datetime,
+    variables: list[str],
+    output_dir: Path,
+    dtypes: dict[str,str] | None = None,
+    merge_after_download: bool = True
+):
+    
     """
     Returns the string content of a Python script that downloads data using
-    CDAWebDownloader and saves it to a NetCDF file.
+    CDAWebDownloader and optionally merges it into a single NetCDF file.
 
     Parameters
     ----------
@@ -22,29 +33,40 @@ def generate_script(base_url, start_date, end_date, variables, output_path, dtyp
         End of the date range.
     variables : list[str]
         Selected variable names.
-    output_path : str
-        Path to save merged NetCDF file.
+    output_dir : str
+        Folder where NetCDF files will be saved.
     dtypes : dict, optional
         Mapping of variable name -> dtype (e.g. {"Bx": "float32"}). Defaults to None.
+    merge_after_download : bool, optional
+        If True, merge datasets into a single file (default=True).
     """
 
-    # Prepare the dtype argument string — only include it if dtypes are provided
-    dtype_arg = f", dtypes={dtypes}" if dtypes else ""
+    dtype_arg = f",\ndtypes={dtypes}" if dtypes else ""
 
-    return f"""\
+    # Always do the download
+    script = f"""\
 from cdaweb_downloader.core import CDAWebDownloader
+from pathlib import Path
 
-# Initialize the downloader using the selected base URL
+# Initialize the downloader
 downloader = CDAWebDownloader("{base_url}")
 
-print("Starting download and merge...")
-ds = downloader.download_and_merge(
+print("Starting download...")
+out_folder = downloader.download_and_save_multiple_cdfs(
     start_date="{start_date.strftime('%Y-%m-%d')}",
     end_date="{end_date.strftime('%Y-%m-%d')}",
-    selected_variables={variables}{dtype_arg}  # <-- NEW: Pass dtypes if provided
+    selected_variables={variables}{dtype_arg},
+    output_dir=Path("{output_dir}").parent
 )
-
-# Save the merged dataset to NetCDF
-ds.to_netcdf("{output_path}")
-print("✔ Saved merged dataset to: {output_path}")
+print(f"Downloaded files to: {{out_folder}}")
 """
+
+    # Only merge if requested
+    if merge_after_download:
+        script += f"""
+print("Merging downloaded datasets...")
+merged_path = downloader.merge_downloaded_datasets(out_folder)
+print(f"Saved merged dataset to: {{merged_path}}")
+"""
+
+    return script

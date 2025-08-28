@@ -2,34 +2,23 @@
 Core logic for downloading and merging CDF files from CDAWeb.
 
 Notes to self for later implementation:
-1) Would eventually like automatically detect time coordinate(s) and align
-   datasets based on that. For datasets with just 1 time dim, will probably
-   be pretty easy, however some missions have multiple time coordinates
-   in their cdfs (such as THEMIS, which records at a variety of resolutions).
-   Moreover, sometimes the time dimensions do not have consistent names!
-   (My experience was when looking at reduced (~3s) and full (96s/384s)
-   that sometimes the reduced time name was 'record1' and other times
-   it was 'record2'! ).
-2) When implementing (1), be aware the cdflib.cdf_to_xarray ca only make
-   data vars, coords, and dims based on data present with the given cdf.
-   So if a particular cdf has bad data (such that much or all of it may
-   be missing), then the corresponding coords and dims for such data may
-   also not be present. Downstream xarray functions like concat, join, merge
-   may not work (as intended, if at all) if some of those coords / dims are
-   missing! It will likely be necessary to look over a list of downlaoded
-   datasets and consider the "union" of all coords and dims , then remove
-   datasets from the list that do not match this list of coords / dims.
+  All future-requests completed as of now!
 """
 
 from datetime import datetime
 from dateutil.parser import parse as date_parse
-from .cdf_handler import load_cdf_from_url, subset_dataset, merge_datasets, collapse_all_attrs_to_json
+from .cdf_handler import load_cdf_from_url, subset_dataset, collapse_all_attrs_to_json
 from .utils import list_dir, extract_date_from_filename
+from .merge import align_datasets_over_time_dims
 import xarray as xr
 import re
 from pathlib import Path
 
+
+
 class CDAWebDownloader:
+    
+    
     
     def __init__(self, base_url: str):
         """
@@ -39,12 +28,14 @@ class CDAWebDownloader:
         """
         self.base_url = base_url.rstrip("/")
     
+    
+    
     def _download_and_save_single_cdf(
         self,
         url: str,
         selected_variables: list[str],
         output_dir: Path,
-        dtypes: dict[str, str] | None = None  # <-- NEW: optional dict of {var_name: dtype_str}
+        dtypes: dict[str, str] | None = None
     ) -> None:
         """
         Downloads a single cdf from CDAWeb, filters it based on the
@@ -187,7 +178,30 @@ class CDAWebDownloader:
                 except Exception as e:
                     print(f"Failed to access or download from {year_url}: {e}")
 
-        #if not datasets:
-        #    raise ValueError("No valid datasets found for the given range.")
-
         return out_dir
+    
+    
+    
+    def merge_downloaded_datasets(self, folder: Path) -> Path:
+        """
+        Merge all downloaded .nc files in the given folder and save as merged_dataset.nc.
+        
+        Parameters
+        ----------
+        folder : Path
+            Directory containing the .nc files from download_and_save_multiple_cdfs.
+        
+        Returns
+        -------
+        Path
+            Path to the saved merged_dataset.nc
+        """
+        # load datasets (sorted!) and then align over time and merge
+        ds_list = [ xr.open_dataset(f) for f in sorted(folder.glob("*.nc")) ]
+        final_ds = align_datasets_over_time_dims(ds_list)
+        
+        # save aligned and merged dataset into parent folder of cdf_folder
+        merged_ds_path = folder.parent / 'merged_dataset.nc'
+        final_ds.to_netcdf(merged_ds_path)
+    
+        return merged_ds_path
