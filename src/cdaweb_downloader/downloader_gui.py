@@ -11,15 +11,18 @@ Allows the user to:
 """
 
 import tkinter as tk
+from tkinter import ttk
 from tkinter import messagebox, scrolledtext, filedialog
+
 from datetime import datetime, timedelta
 from dateutil.parser import parse as date_parse
+import xarray as xr
+from pathlib import Path
+
 from .utils import list_dir, get_instrument_base_url
 from .cdf_handler import load_cdf_from_url
 from .core import CDAWebDownloader
 from .codegen import generate_script
-import xarray as xr
-from pathlib import Path
 
 
 
@@ -172,7 +175,11 @@ class CDAWebGUI(tk.Tk):
             messagebox.showerror("CDF Error", str(e))
             
         
-    def estimate_merge_memory(self, start_date, end_date) -> float:
+    def estimate_merge_memory(
+            self, 
+            start_date: datetime, 
+            end_date: datetime
+    ) -> float:
         """
         Estimate memory (in GB) required for merging datasets.
         Uses reference file size from the sample dataset × number of days × 2.
@@ -183,7 +190,10 @@ class CDAWebGUI(tk.Tk):
         
 
 
-    def show_dataset_selector(self, ds):
+    def show_dataset_selector(
+            self, 
+            ds: xr.Dataset
+    ):
         """
         Opens a window where users can select which variables to keep from the sample CDF.
     
@@ -324,7 +334,10 @@ class CDAWebGUI(tk.Tk):
         tk.Button(checklist_container, text="Next: Choose Data Types", command=go_to_step2).pack(pady=10)
         
     
-    def _collect_dependent_coords(ds, selected_vars):
+    def _collect_dependent_coords(
+            ds: xr.Dataset, 
+            selected_vars: list[str]
+    ) -> list[str]:
         """
         Return a sorted list of coordinate names that the selected variables
         *actually* depend on. We include:
@@ -632,32 +645,71 @@ class CDAWebGUI(tk.Tk):
 
     def download_and_merge_cdfs(self):
         """
-        Downloads and saved selected variables over the specified date range
-        for each cdf in range.
+        Download and save selected variables over the specified date range,
+        showing a live progress bar as files are downloaded. Optionally merges
+        the datasets afterward if the user selected that option.
+    
+        Workflow:
+        1. Opens a progress window with a label and ttk.Progressbar.
+        2. Calls `download_and_save_multiple_cdfs` with a progress_callback
+           that updates the progress bar and label after each file is saved.
+        3. After downloads finish:
+            - If merging was requested, merges all .nc files and saves a merged dataset.
+            - Otherwise, simply informs the user where the .nc files were saved.
+        4. Closes the progress window and exits gracefully.
         """
         try:
-            # first download all cdfs
             s, e = self.date_range
+            total_days = (e - s).days + 1
+    
+            # Progress window
+            prog_win = tk.Toplevel(self)
+            prog_win.title("Downloading...")
+            prog_label = tk.Label(prog_win, text=f"Downloaded 0 / {total_days} files")
+            prog_label.pack(pady=10)
+    
+            progress = ttk.Progressbar(prog_win, length=300, mode="determinate")
+            progress.pack(pady=10)
+            progress["maximum"] = total_days
+            progress["value"] = 0
+            prog_win.update()
+    
+            # --- Wrapper to update progress each iteration ---
+            def progress_callback(done, total):
+                progress["maximum"] = total
+                progress["value"] = done
+                prog_label.config(text=f"Downloaded {done} / {total} files")
+                prog_win.update()  # <-- ensures Tk processes pending redraws
+    
+            # Perform downloads with progress updates
             cdf_folder = self.downloader.download_and_save_multiple_cdfs(
-                                start_date = s, 
-                                end_date   = e,
-                                selected_variables = self.selected_variables,
-                                output_dir = self.output_dir,
-                                dtypes = self.selected_dtypes
+                start_date=s,
+                end_date=e,
+                selected_variables=self.selected_variables,
+                output_dir=self.output_dir,
+                dtypes=self.selected_dtypes,
+                progress_callback=progress_callback
             )
-            
-            # then merge if user requested
+    
+            # Merge if requested
             if self.merge_after_download:
                 merged_ds_path = self.downloader.merge_downloaded_datasets(cdf_folder)
-                messagebox.showinfo("Merged dataset saved", 
+                prog_win.destroy()
+                messagebox.showinfo("Merged dataset saved",
                                     f"Saved to: {merged_ds_path}")
                 print(f"Final merged dataset saved at {merged_ds_path}")
-
-            # End program here (idk what happens if exception encountered tho)            
+            else:
+                prog_win.destroy()
+                messagebox.showinfo("Download Complete", f"Saved .nc files to {cdf_folder}")
+    
+            # Graceful exit
             self.quit()
             self.destroy()
-        
-        # Show error if downloads messed up somehow
+    
         except Exception as e:
+            try:
+                prog_win.destroy()
+            except Exception:
+                pass
             messagebox.showerror("Download Error", str(e))
 

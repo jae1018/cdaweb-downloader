@@ -2,7 +2,8 @@
 Core logic for downloading and merging CDF files from CDAWeb.
 
 Notes to self for later implementation:
-  All future-requests completed as of now!
+  1) When convertable data-types is shown for data vars and coords, it also
+     offers to convert strs to numeric type - this should not be permitted!
 """
 
 from datetime import datetime
@@ -11,7 +12,6 @@ from .cdf_handler import load_cdf_from_url, subset_dataset, collapse_all_attrs_t
 from .utils import list_dir, extract_date_from_filename
 from .merge import align_datasets_over_time_dims
 import xarray as xr
-import re
 from pathlib import Path
 
 
@@ -118,66 +118,93 @@ class CDAWebDownloader:
 
     def download_and_save_multiple_cdfs(
             self, 
-            start_date : datetime | str, 
-            end_date   : datetime | str, 
-            selected_variables : list[str],
-            dtypes : dict[str, str] = None,
-            output_dir : str | None = None
+            start_date: datetime | str, 
+            end_date: datetime | str, 
+            selected_variables: list[str],
+            dtypes: dict[str, str] = None,
+            output_dir: str | None = None,
+            progress_callback=None
     ) -> Path:
-        """
-        Downloads and merges .CDF files across multiple year folders
-        if their dates fall within the given range.
         
-        PARAMETERS
+        """
+        Downloads multiple .CDF files from CDAWeb within the specified date range,
+        saves them locally as NetCDF, and reports progress via an optional callback.
+    
+        Parameters
         ----------
-        start_date : datetime.datetime (or str to be converted)
-        end_date : datetime.datetime (or str to be converted)
-        selected_variables : list of strs
-            List of data variable names in the cdf to keep
-        output_dir : Path
-            Path object to desired output folder for the cdf
-            
-        RETURNS
+        start_date : datetime.datetime or str
+            Beginning of the date range (inclusive). If a string is given, it will
+            be parsed with `dateutil.parser.parse`.
+        end_date : datetime.datetime or str
+            End of the date range (inclusive). If a string is given, it will
+            be parsed with `dateutil.parser.parse`.
+        selected_variables : list of str
+            Names of variables to extract from each downloaded file.
+        dtypes : dict[str, str], optional
+            Mapping of variable name → dtype string (e.g. {"Bx": "float32"}).
+            If None, the dataset is kept at its default dtypes.
+        output_dir : str or Path, optional
+            Base directory where files will be saved. If not provided, the current
+            working directory is used. A subfolder named "cached_cdaweb_netcdfs"
+            will be created inside it.
+        progress_callback : callable, optional
+            Function that receives `(completed, total)` as arguments after
+            each file attempt (whether successful or failed). This allows a
+            GUI progress bar or logger to be updated during long downloads.
+    
+        Returns
         -------
-        Path object to folder of saved netcdfs.
+        Path
+            The directory containing the downloaded NetCDF files.
+    
+        Notes
+        -----
+        - Files that cannot be downloaded or parsed are skipped, but the progress
+          count is still incremented to ensure user feedback is consistent.
+        - This function does not merge datasets; merging should be performed
+          downstream (e.g. with `merge_downloaded_datasets`).
         """
         
-        if isinstance(start_date, str): start_date = date_parse(start_date)
-        if isinstance(end_date, str): end_date = date_parse(end_date)
-        
+        if isinstance(start_date, str): 
+            start_date = date_parse(start_date)
+        if isinstance(end_date, str): 
+            end_date = date_parse(end_date)
+    
         # create out_dir if does not exist
         out_dir = Path(output_dir) if output_dir else Path.cwd()
         out_dir = out_dir / "cached_cdaweb_netcdfs"
         out_dir.mkdir(parents=True, exist_ok=True)
-
+    
+        # --- Collect all candidate files first ---
+        file_list = []
         for year in range(start_date.year, end_date.year + 1):
             year_url = f"{self.base_url}/{year}/"
             for name, url in list_dir(year_url):
-                
-                # attempt to download file...        
-                try:
-                
-                    # check that file is of type .cdf
-                    if not name.endswith(".cdf"):
-                        continue
-                    
-                    # check that file is within requested date range
-                    file_date = extract_date_from_filename(name)
-                    if file_date is None or not (start_date <= file_date <= end_date):
-                        continue
-                    
-                    # download file
-                    self._download_and_save_single_cdf(
-                                url, 
-                                selected_variables, 
-                                out_dir,
-                                dtypes = dtypes
-                    )
-
-                # ... and print exception if fails
-                except Exception as e:
-                    print(f"Failed to access or download from {year_url}: {e}")
-
+                if not name.endswith(".cdf"):
+                    continue
+                file_date = extract_date_from_filename(name)
+                if file_date and (start_date <= file_date <= end_date):
+                    file_list.append((name, url))
+    
+        total_files = len(file_list)
+        completed = 0
+    
+        # --- Download loop ---
+        for name, url in file_list:
+            try:
+                self._download_and_save_single_cdf(
+                    url, 
+                    selected_variables, 
+                    out_dir,
+                    dtypes=dtypes
+                )
+            except Exception as e:
+                print(f"Failed to download {url}: {e}")
+    
+            completed += 1
+            if progress_callback:
+                progress_callback(completed, total_files)
+    
         return out_dir
     
     
