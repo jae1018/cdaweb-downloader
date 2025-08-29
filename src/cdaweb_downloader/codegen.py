@@ -46,7 +46,6 @@ def generate_script(
     # Always do the download
     script = f"""\
 from cdaweb_downloader.core import CDAWebDownloader
-from pathlib import Path
 
 # Initialize the downloader
 downloader = CDAWebDownloader("{base_url}")
@@ -56,7 +55,7 @@ out_folder = downloader.download_and_save_multiple_cdfs(
     start_date="{start_date.strftime('%Y-%m-%d')}",
     end_date="{end_date.strftime('%Y-%m-%d')}",
     selected_variables={variables}{dtype_arg},
-    output_dir=Path("{output_dir}").parent
+    output_dir="{output_dir}"
 )
 print(f"Downloaded files to: {{out_folder}}")
 """
