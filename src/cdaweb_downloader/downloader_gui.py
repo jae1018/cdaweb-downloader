@@ -632,7 +632,7 @@ class CDAWebGUI(tk.Tk):
                     start_date=self.date_range[0],
                     end_date=self.date_range[1],
                     variables=self.selected_variables,
-                    output_dir="<your_output_file.nc>",   # placeholder
+                    output_dir="{self.output_dir}",   # placeholder
                     dtypes=self.selected_dtypes
                 )
                 with open(output_path, "w") as f:

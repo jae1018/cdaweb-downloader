@@ -41,7 +41,7 @@ def generate_script(
         If True, merge datasets into a single file (default=True).
     """
 
-    dtype_arg = f",\ndtypes={dtypes}" if dtypes else ""
+    dtype_arg = f",\n    dtypes={dtypes}" if dtypes else ""
 
     # Always do the download
     script = f"""\
@@ -55,7 +55,8 @@ out_folder = downloader.download_and_save_multiple_cdfs(
     start_date="{start_date.strftime('%Y-%m-%d')}",
     end_date="{end_date.strftime('%Y-%m-%d')}",
     selected_variables={variables}{dtype_arg},
-    output_dir="{output_dir}"
+    output_dir="{output_dir}",
+    use_tqdm=True
 )
 print(f"Downloaded files to: {{out_folder}}")
 """

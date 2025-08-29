@@ -124,7 +124,8 @@ class CDAWebDownloader:
             selected_variables: list[str],
             dtypes: dict[str, str] = None,
             output_dir: str | None = None,
-            progress_callback=None
+            progress_callback = None,
+            use_tqdm : bool = False
     ) -> Path:
         
         """
@@ -152,6 +153,9 @@ class CDAWebDownloader:
             Function that receives `(completed, total)` as arguments after
             each file attempt (whether successful or failed). This allows a
             GUI progress bar or logger to be updated during long downloads.
+        use_tqdm : bool, optional
+            If True, shows a tqdm progress bar in the terminal (ignored if a 
+            progress_callback is provided).
     
         Returns
         -------
@@ -189,6 +193,15 @@ class CDAWebDownloader:
     
         total_files = len(file_list)
         completed = 0
+        
+        # --- Setup tqdm if requested and no GUI callback ---
+        pbar = None
+        if use_tqdm and progress_callback is None:
+            try:
+                from tqdm import tqdm
+                pbar = tqdm(total=total_files, unit="file")
+            except ImportError:
+                print("tqdm not installed; proceeding without progress bar.")
     
         # --- Download loop ---
         for name, url in file_list:
@@ -202,9 +215,16 @@ class CDAWebDownloader:
             except Exception as e:
                 print(f"Failed to download {url}: {e}")
     
+            # Increment progress / tqdm bar if enabled
             completed += 1
             if progress_callback:
                 progress_callback(completed, total_files)
+            elif pbar:
+                pbar.update(1)
+        
+        # close tqdm bar after for loop
+        if pbar:
+            pbar.close()
     
         return out_dir
     
