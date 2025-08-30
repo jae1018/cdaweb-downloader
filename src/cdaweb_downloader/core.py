@@ -16,7 +16,8 @@ Notes to self for later implementation:
      like 30 mins to 1 hour but would compress to size of ~3 or 4 GB).
      Could infer time_dims from codes in merge.py, chunk over those, then
      specify the encoding dict in the .to_netcdf() function (a complevel of
-    4 [balanced between 1 and 9] would probably be the most sensible).
+     four [balanced between 1 and 9] would probably be the most sensible).
+  5) After merging, delete folder of cached cdfs? Something to consider.
 """
 
 from datetime import datetime
