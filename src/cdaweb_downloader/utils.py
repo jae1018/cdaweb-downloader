@@ -2,11 +2,15 @@
 Utility functions for directory parsing, date extraction, and download size estimation.
 """
 
+
+
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from datetime import datetime
 import re
+
+
 
 def list_dir(url):
     response = requests.get(url)
@@ -19,6 +23,8 @@ def list_dir(url):
             full_url = urljoin(url, href)
             entries.append((href, full_url))
     return entries
+
+
 
 def extract_date_from_filename(filename):
     match = re.search(r"(\d{8})", filename)

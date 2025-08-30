@@ -22,7 +22,7 @@ from dateutil.parser import parse as date_parse
 import xarray as xr
 from pathlib import Path
 
-from .cdf_handler import load_cdf_from_url, subset_dataset, collapse_all_attrs_to_json
+from .cdf_handler import load_cdf_from_url, subset_dataset, collapse_all_attrs_to_json, clean_object_coords
 from .utils import list_dir, extract_date_from_filename
 from .merge import align_datasets_over_time_dims
 from .logger import logger
@@ -264,12 +264,25 @@ class CDAWebDownloader:
         
         logger.info(f"Merging all NetCDF files in {folder}")
         
-        # load datasets (sorted!) and then align over time and merge
-        ds_list = [ xr.open_dataset(f, chunks="auto") for f in sorted(folder.glob("*.nc")) ]
+        # load datasets (sorted!)
+        ds_list = []
+        for f in sorted(folder.glob("*.nc")):
+            # open with chunking
+            ds = xr.open_dataset(f, engine="netcdf4", chunks={})
+            # sanitize coords
+            ds = clean_object_coords(ds)
+            # save to list
+            ds_list.append(ds)
+        
+        # align datasets over time
         final_ds = align_datasets_over_time_dims(ds_list)
+        
+        # rechunk afer merge
+        final_ds = final_ds.chunk("auto")
         
         # save aligned and merged dataset into parent folder of cdf_folder
         merged_ds_path = folder.parent / 'merged_dataset.nc'
+        
         # compute=True, engine='netcdf4' means that contents are stream
         # from original files to currently-generated cumulative file,
         # saving resources on RAM (all files don't need to be loaded at once!)
