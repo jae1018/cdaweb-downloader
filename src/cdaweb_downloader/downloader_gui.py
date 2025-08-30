@@ -714,7 +714,6 @@ class CDAWebGUI(tk.Tk):
                 prog_win.destroy()
                 messagebox.showinfo("Merged dataset saved",
                                     f"Saved to: {merged_ds_path}")
-                print(f"Final merged dataset saved at {merged_ds_path}")
             else:
                 prog_win.destroy()
                 messagebox.showinfo("Download Complete", f"Saved .nc files to {cdf_folder}")

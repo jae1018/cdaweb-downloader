@@ -9,11 +9,13 @@ Notes to self for later implementation:
 
 from datetime import datetime
 from dateutil.parser import parse as date_parse
+import xarray as xr
+from pathlib import Path
+
 from .cdf_handler import load_cdf_from_url, subset_dataset, collapse_all_attrs_to_json
 from .utils import list_dir, extract_date_from_filename
 from .merge import align_datasets_over_time_dims
-import xarray as xr
-from pathlib import Path
+from .logger import logger
 
 
 
@@ -60,7 +62,7 @@ class CDAWebDownloader:
         None
         """
     
-        print(f"Downloading {url}")
+        logger.info(f"Downloading {url}")
     
         # Load the dataset from the provided CDF URL
         ds, _ = load_cdf_from_url(url)
@@ -68,44 +70,46 @@ class CDAWebDownloader:
         # Keep only the requested variables
         subset = subset_dataset(ds, selected_variables)
     
+    
         # -------------------------------
         # NEW: Apply custom dtype casting
         # -------------------------------
         if dtypes:
-            print("Applying user-selected dtypes to variables and coordinates...")
+            logger.info("Applying user-selected dtypes to variables and coordinates...")
             for name, dtype in dtypes.items():
+                
                 # Data variables
                 if name in subset.data_vars:
                     current_dtype = str(subset[name].dtype)
                     try:
                         subset[name] = subset[name].astype(dtype)
-                        print(f"  ✔ var {name}: {current_dtype} → {dtype}")
+                        logger.info(f"  ✔ var {name}: {current_dtype} → {dtype}")
                     except Exception as e:
-                        print(f"  ⚠ WARNING: failed to cast var '{name}' ({current_dtype} → {dtype}): {e}")
+                        logger.warning(
+                            f"  ⚠ Failed to cast var '{name}' ({current_dtype} → {dtype}): {e}"
+                        )
+                        
                 # Coordinates
                 elif name in subset.coords:
                     current_dtype = str(subset.coords[name].dtype)
                     try:
                         subset = subset.assign_coords({name: subset.coords[name].astype(dtype)})
-                        print(f"  ✔ coord {name}: {current_dtype} → {dtype}")
+                        logger.info(f"  ✔ coord {name}: {current_dtype} → {dtype}")
                     except Exception as e:
-                        print(f"  ⚠ WARNING: failed to cast coord '{name}' ({current_dtype} → {dtype}): {e}")
+                        logger.warning(
+                            f"  ⚠ Failed to cast coord '{name}' ({current_dtype} → {dtype}): {e}"
+                        )
+                
+                # Non data-vars / coords
                 else:
-                    print(f"  ⚠ Skipping '{name}' — not found among vars or coords in subset.")
+                    logger.warning(f"  ⚠ Skipping '{name}' — not found in dataset.")
+                    
         else:
-            print("No custom dtypes provided — using default data types.")
+            logger.info("No custom dtypes provided — using default data types.")
+    
     
         # Collapse attributes into JSON-safe strings (avoids NetCDF serialization issues)
         subset = collapse_all_attrs_to_json(subset)
-    
-        """
-        # OLD ATTR STRIP LOGIC (kept for reference)
-        for var in subset.data_vars:
-            subset[var].attrs.pop("units", None)
-        for var in subset.coords:
-            subset[var].attrs.pop("units", None)
-        subset.attrs
-        """
     
         # Save CDF as NetCDF with the same filename from URL but new extension
         filepath = output_dir / Path(url).name
@@ -113,7 +117,7 @@ class CDAWebDownloader:
     
         # Final save step
         subset.to_netcdf(filepath)
-        print(f"Saved dataset at {filepath}")
+        logger.info(f"Saved dataset at {filepath}")
         
         
 
@@ -193,15 +197,16 @@ class CDAWebDownloader:
     
         total_files = len(file_list)
         completed = 0
+        logger.info(f"Found {total_files} files to download.")
         
         # --- Setup tqdm if requested and no GUI callback ---
         pbar = None
         if use_tqdm and progress_callback is None:
             try:
                 from tqdm import tqdm
-                pbar = tqdm(total=total_files, unit="file")
+                pbar = tqdm(total=total_files, unit="file", desc="Downloading")
             except ImportError:
-                print("tqdm not installed; proceeding without progress bar.")
+                logger.warning("tqdm not installed; proceeding without progress bar.")
     
         # --- Download loop ---
         for name, url in file_list:
@@ -213,7 +218,7 @@ class CDAWebDownloader:
                     dtypes=dtypes
                 )
             except Exception as e:
-                print(f"Failed to download {url}: {e}")
+                logger.error(f"Failed to download {url}: {e}")
     
             # Increment progress / tqdm bar if enabled
             completed += 1
@@ -225,6 +230,8 @@ class CDAWebDownloader:
         # close tqdm bar after for loop
         if pbar:
             pbar.close()
+            
+        logger.info(f"Downloaded files to: {out_dir}")
     
         return out_dir
     
@@ -244,6 +251,9 @@ class CDAWebDownloader:
         Path
             Path to the saved merged_dataset.nc
         """
+        
+        logger.info(f"Merging all NetCDF files in {folder}")
+        
         # load datasets (sorted!) and then align over time and merge
         ds_list = [ xr.open_dataset(f) for f in sorted(folder.glob("*.nc")) ]
         final_ds = align_datasets_over_time_dims(ds_list)
@@ -251,5 +261,7 @@ class CDAWebDownloader:
         # save aligned and merged dataset into parent folder of cdf_folder
         merged_ds_path = folder.parent / 'merged_dataset.nc'
         final_ds.to_netcdf(merged_ds_path)
+    
+        logger.info(f"Merged dataset saved at {merged_ds_path}")
     
         return merged_ds_path

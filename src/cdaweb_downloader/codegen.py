@@ -58,15 +58,12 @@ out_folder = downloader.download_and_save_multiple_cdfs(
     output_dir="{output_dir}",
     use_tqdm=True
 )
-print(f"Downloaded files to: {{out_folder}}")
 """
 
     # Only merge if requested
     if merge_after_download:
         script += f"""
-print("Merging downloaded datasets...")
 merged_path = downloader.merge_downloaded_datasets(out_folder)
-print(f"Saved merged dataset to: {{merged_path}}")
 """
 
     return script
