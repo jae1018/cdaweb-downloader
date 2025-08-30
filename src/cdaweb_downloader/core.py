@@ -7,14 +7,16 @@ Notes to self for later implementation:
      Also, be aware of datetime data types
   2) Have logger.py also absorb all the warnings spit out by cdflib in
      cdf_handler.py
-  3) Use Dask in merge_downloaded_datasets so that don't require huge amounts
-     of RAM to concat everything, just roughly the size of a single file
-     (but this will likely increase the time to merge). Suppoooooosedly,
-     it should be easy but we'll see later lol
-  4) Modify output_dir in codegen.py so that the printed path for the user
+  3) Modify output_dir in codegen.py so that the printed path for the user
      is based on Path rather than outright str - that way, it will be easier
      for Windows users (e.g. something like Path.home() / "Documents" / "project"
      instead of /Users/me/Documents/project )
+  4) Compressing the final merged dataset is reasonably possible but adds
+     extra time based on compression levels for netcdf (for 10GB, could be
+     like 30 mins to 1 hour but would compress to size of ~3 or 4 GB).
+     Could infer time_dims from codes in merge.py, chunk over those, then
+     specify the encoding dict in the .to_netcdf() function (a complevel of
+    4 [balanced between 1 and 9] would probably be the most sensible).
 """
 
 from datetime import datetime
