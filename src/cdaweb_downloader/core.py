@@ -11,6 +11,10 @@ Notes to self for later implementation:
      of RAM to concat everything, just roughly the size of a single file
      (but this will likely increase the time to merge). Suppoooooosedly,
      it should be easy but we'll see later lol
+  4) Modify output_dir in codegen.py so that the printed path for the user
+     is based on Path rather than outright str - that way, it will be easier
+     for Windows users (e.g. something like Path.home() / "Documents" / "project"
+     instead of /Users/me/Documents/project )
 """
 
 from datetime import datetime
