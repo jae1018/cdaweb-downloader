@@ -170,62 +170,62 @@ def align_datasets_over_time_dims(
         ds_list: list[xr.Dataset]
 ) -> list[xr.Dataset]:
         
-        """
-        Aligns the given list of datasets by their time dims. The aligned
-        datasets are returned as a mutually-exclusive list where each
-        resulting dataset is aliged for a particular time dim (i.e. in the
-        case of datasets where different time-resolution data are available).
+    """
+    Aligns the given list of datasets by their time dims. The aligned
+    datasets are returned as a mutually-exclusive list where each
+    resulting dataset is aliged for a particular time dim (i.e. in the
+    case of datasets where different time-resolution data are available).
+    
+    PARAMETERS
+    ----------
+    ds_list - list of xarray datasets
+        Each dataset in this list might contain multiple time vars. Some,
+        due to CDF issues, might also be missing some or all of their 
+        corresponding time dims
+    
+    RETURNS
+    -------
+    list of xarray datasets
+        These datasets are aligned per time var (so if there are 3 time
+        resolutions, this list will contain 3 datasets).
+    """
+    
+    # First enforce that all datasets in ds_list have similar first_dim
+    # names (based on first dataset in list)
+    ds_list = _enforce_consistent_first_dim_name(ds_list)
+    
+    # Assume first dataset in list contains correct time info
+    # This WILL NOT BE CORRECT IF THIS FIRST DATASET CONTAINS
+    # MISSING TIME DATA!!!!
+    time_dims = list(set(
+        # get values from dict, then convert to set to get unqiues
+        _track_first_dim(ds_list[:1])[0].values()
+    ))
+    
+    # for each time name, need to build list of datasets where all other time
+    # names are dropped
+    combined_datasets = []
+    for time_dim in time_dims:
+        other_time_dims = list( set(time_dims) - set([time_dim]) )
         
-        PARAMETERS
-        ----------
-        ds_list - list of xarray datasets
-            Each dataset in this list might contain multiple time vars. Some,
-            due to CDF issues, might also be missing some or all of their 
-            corresponding time dims
+        # build list of datasets, all only containing data involving
+        # current time_dim in for loop
+        ds_list_single_time_dim = [ ds.drop_dims(other_time_dims, errors="ignore") 
+                                    for ds in ds_list ]
         
-        RETURNS
-        -------
-        list of xarray datasets
-            These datasets are aligned per time var (so if there are 3 time
-            resolutions, this list will contain 3 datasets).
-        """
+        # purge datasets from list if dims don't match
+        ds_list_single_time_dim = _remove_datasets_with_bad_dims(
+                                        ds_list_single_time_dim
+        )
         
-        # First enforce that all datasets in ds_list have similar first_dim
-        # names (based on first dataset in list)
-        ds_list = _enforce_consistent_first_dim_name(ds_list)
-        
-        # Assume first dataset in list contains correct time info
-        # This WILL NOT BE CORRECT IF THIS FIRST DATASET CONTAINS
-        # MISSING TIME DATA!!!!
-        time_dims = list(set(
-            # get values from dict, then convert to set to get unqiues
-            _track_first_dim(ds_list[:1])[0].values()
-        ))
-        
-        # for each time name, need to build list of datasets where all other time
-        # names are dropped
-        combined_datasets = []
-        for time_dim in time_dims:
-            other_time_dims = list( set(time_dims) - set([time_dim]) )
-            
-            # build list of datasets, all only containing data involving
-            # current time_dim in for loop
-            ds_list_single_time_dim = [ ds.drop_dims(other_time_dims, errors="ignore") 
-                                        for ds in ds_list ]
-            
-            # purge datasets from list if dims don't match
-            ds_list_single_time_dim = _remove_datasets_with_bad_dims(
-                                            ds_list_single_time_dim
-            )
-            
-            # concat dataset along time_dim then save to list
-            combined_datasets.append( 
-                xr.concat(ds_list_single_time_dim, 
-                          dim    = time_dim, 
-                          coords = "minimal", 
-                          join   = "override")
-            )
-        
-        # Merge all concatenated datasets into one
-        return xr.merge(combined_datasets, compat='no_conflicts')
+        # concat dataset along time_dim then save to list
+        combined_datasets.append( 
+            xr.concat(ds_list_single_time_dim, 
+                      dim    = time_dim, 
+                      coords = "minimal", 
+                      join   = "override")
+        )
+    
+    # Merge all concatenated datasets into one
+    return xr.merge(combined_datasets, compat='no_conflicts')
     

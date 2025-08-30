@@ -5,6 +5,12 @@ Notes to self for later implementation:
   1) When convertable data-types is shown for data vars and coords, it also
      offers to convert strs to numeric type - this should not be permitted!
      Also, be aware of datetime data types
+  2) Have logger.py also absorb all the warnings spit out by cdflib in
+     cdf_handler.py
+  3) Use Dask in merge_downloaded_datasets so that don't require huge amounts
+     of RAM to concat everything, just roughly the size of a single file
+     (but this will likely increase the time to merge). Suppoooooosedly,
+     it should be easy but we'll see later lol
 """
 
 from datetime import datetime
