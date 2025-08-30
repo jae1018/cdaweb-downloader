@@ -261,12 +261,15 @@ class CDAWebDownloader:
         logger.info(f"Merging all NetCDF files in {folder}")
         
         # load datasets (sorted!) and then align over time and merge
-        ds_list = [ xr.open_dataset(f) for f in sorted(folder.glob("*.nc")) ]
+        ds_list = [ xr.open_dataset(f, chunks="auto") for f in sorted(folder.glob("*.nc")) ]
         final_ds = align_datasets_over_time_dims(ds_list)
         
         # save aligned and merged dataset into parent folder of cdf_folder
         merged_ds_path = folder.parent / 'merged_dataset.nc'
-        final_ds.to_netcdf(merged_ds_path)
+        # compute=True, engine='netcdf4' means that contents are stream
+        # from original files to currently-generated cumulative file,
+        # saving resources on RAM (all files don't need to be loaded at once!)
+        final_ds.to_netcdf(merged_ds_path, compute=True, engine="netcdf4")
     
         logger.info(f"Merged dataset saved at {merged_ds_path}")
     
