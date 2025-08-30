@@ -18,6 +18,9 @@ Notes to self for later implementation:
      specify the encoding dict in the .to_netcdf() function (a complevel of
      four [balanced between 1 and 9] would probably be the most sensible).
   5) After merging, delete folder of cached cdfs? Something to consider.
+  6) Add option for categorical encoding for some float variables (but this
+     would only really be useful in cases of energy bins or something, would
+     be useless for things like mag, velocity, temp measurements, etc)
 """
 
 from datetime import datetime
