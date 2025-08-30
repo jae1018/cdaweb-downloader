@@ -2,11 +2,15 @@
 Functions for loading, subsetting, and merging CDF files into xarray datasets.
 """
 
+
+
 from cdflib.xarray import cdf_to_xarray
 import xarray as xr
 import tempfile
 import requests
 import json
+
+
 
 def collapse_all_attrs_to_json(ds: xr.Dataset) -> xr.Dataset:
     """
@@ -40,6 +44,8 @@ def collapse_all_attrs_to_json(ds: xr.Dataset) -> xr.Dataset:
 
     return ds
 
+
+
 def load_cdf_from_url(url):
     response = requests.get(url)
     response.raise_for_status()
@@ -47,6 +53,8 @@ def load_cdf_from_url(url):
         tmp.write(response.content)
         tmp_path = tmp.name
     return cdf_to_xarray(tmp_path, to_datetime=True, fillval_to_nan=True), len(response.content) / 1024**2  # size in MB
+
+
 
 def subset_dataset(ds, variable_list):
     return ds[variable_list]
