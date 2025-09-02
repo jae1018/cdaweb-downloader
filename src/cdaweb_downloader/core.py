@@ -99,10 +99,10 @@ class CDAWebDownloader:
                     current_dtype = str(subset[name].dtype)
                     try:
                         subset[name] = subset[name].astype(dtype)
-                        logger.info(f"  ✔ var {name}: {current_dtype} → {dtype}")
+                        logger.info(f"  var {name}: {current_dtype} → {dtype}")
                     except Exception as e:
                         logger.warning(
-                            f"  ⚠ Failed to cast var '{name}' ({current_dtype} → {dtype}): {e}"
+                            f"  Failed to cast var '{name}' ({current_dtype} → {dtype}): {e}"
                         )
                         
                 # Coordinates
@@ -110,15 +110,15 @@ class CDAWebDownloader:
                     current_dtype = str(subset.coords[name].dtype)
                     try:
                         subset = subset.assign_coords({name: subset.coords[name].astype(dtype)})
-                        logger.info(f"  ✔ coord {name}: {current_dtype} → {dtype}")
+                        logger.info(f"  coord {name}: {current_dtype} → {dtype}")
                     except Exception as e:
                         logger.warning(
-                            f"  ⚠ Failed to cast coord '{name}' ({current_dtype} → {dtype}): {e}"
+                            f"  Failed to cast coord '{name}' ({current_dtype} → {dtype}): {e}"
                         )
                 
                 # Non data-vars / coords
                 else:
-                    logger.warning(f"  ⚠ Skipping '{name}' — not found in dataset.")
+                    logger.warning(f"  Skipping '{name}' — not found in dataset.")
                     
         else:
             logger.info("No custom dtypes provided — using default data types.")
