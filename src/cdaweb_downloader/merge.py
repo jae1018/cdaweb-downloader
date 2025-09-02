@@ -210,8 +210,24 @@ def align_datasets_over_time_dims(
         
         # build list of datasets, all only containing data involving
         # current time_dim in for loop
-        ds_list_single_time_dim = [ ds.drop_dims(other_time_dims, errors="ignore") 
-                                    for ds in ds_list ]
+        ##ds_list_single_time_dim = [ ds.drop_dims(other_time_dims, errors="ignore") 
+        ##                            for ds in ds_list ]
+        
+        ## If time_dim has length 0 (but other variables hve non-zero length),
+        ## then drop.dims(other_time_dims) will throw error - fix better later!
+        ds_list_single_time_dim = []
+        for ds in ds_list:
+            
+            # throw away dataset if time_dim has length 0
+            if ds[time_dim].size == 0:
+                continue
+            
+            # Otherwise, drop dims and keep
+            else:
+                ds_list_single_time_dim.append(
+                    ds.drop_dims(other_time_dims, errors="ignore") 
+                )
+                
         
         # purge datasets from list if dims don't match
         ds_list_single_time_dim = _remove_datasets_with_bad_dims(

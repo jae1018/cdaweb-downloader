@@ -41,10 +41,15 @@ def generate_script(
         If True, merge datasets into a single file (default=True).
     """
 
+    # specify dtypes beforehand b/c they're optional
     dtype_arg = f",\n    dtypes={dtypes}" if dtypes else ""
+    
+    # Normalize output_dir to plain string
+    output_dir_str = str(Path(output_dir).expanduser().resolve())
 
     # Always do the download
     script = f"""\
+from pathlib import Path
 from cdaweb_downloader.core import CDAWebDownloader
 
 # Initialize the downloader
@@ -55,7 +60,7 @@ out_folder = downloader.download_and_save_multiple_cdfs(
     start_date="{start_date.strftime('%Y-%m-%d')}",
     end_date="{end_date.strftime('%Y-%m-%d')}",
     selected_variables={variables}{dtype_arg},
-    output_dir="{output_dir}",
+    output_dir=Path("{output_dir_str}"),
     use_tqdm=True
 )
 """

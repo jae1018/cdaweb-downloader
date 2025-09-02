@@ -21,6 +21,11 @@ Notes to self for later implementation:
   6) Add option for categorical encoding for some float variables (but this
      would only really be useful in cases of energy bins or something, would
      be useless for things like mag, velocity, temp measurements, etc)
+  7) Sometimes CDFs will record mis-aligned info between a data vari
+     and a dim (e.g. a dim 'record0' has length 0 but a data_var that depends
+     on it has length 1). In merge.py, should eventually make a function
+     that chekcs the integrity of an entire dataset based on data-var /
+     coord and dim alignment.
 """
 
 from datetime import datetime
