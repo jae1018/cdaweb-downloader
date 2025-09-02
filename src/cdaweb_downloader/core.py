@@ -26,6 +26,8 @@ Notes to self for later implementation:
      on it has length 1). In merge.py, should eventually make a function
      that chekcs the integrity of an entire dataset based on data-var /
      coord and dim alignment.
+  8) Instead of just saying "dataset" etc in merge.py logger statements,
+     better to just print the path to the offending file.
 """
 
 from datetime import datetime
