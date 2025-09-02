@@ -29,7 +29,7 @@ import xarray as xr
 from pathlib import Path
 
 from .cdf_handler import load_cdf_from_url, subset_dataset, collapse_all_attrs_to_json, clean_object_coords
-from .utils import list_dir, extract_date_from_filename
+from .utils import list_dir, extract_date_from_filename, is_numeric_dtype
 from .merge import align_datasets_over_time_dims
 from .logger import logger
 
@@ -88,34 +88,46 @@ class CDAWebDownloader:
     
     
         # -------------------------------
-        # NEW: Apply custom dtype casting
+        # Apply custom dtype casting (numeric-only)
         # -------------------------------
         if dtypes:
             logger.info("Applying user-selected dtypes to variables and coordinates...")
             for name, dtype in dtypes.items():
-                
+    
                 # Data variables
                 if name in subset.data_vars:
-                    current_dtype = str(subset[name].dtype)
+                    arr = subset[name]
+                    current_dtype = str(arr.dtype)
+    
+                    if not is_numeric_dtype(arr):
+                        logger.warning(f"  Skipping var '{name}' — non-numeric dtype ({current_dtype})")
+                        continue
+    
                     try:
-                        subset[name] = subset[name].astype(dtype)
+                        subset[name] = arr.astype(dtype)
                         logger.info(f"  var {name}: {current_dtype} → {dtype}")
                     except Exception as e:
                         logger.warning(
                             f"  Failed to cast var '{name}' ({current_dtype} → {dtype}): {e}"
                         )
-                        
+    
                 # Coordinates
                 elif name in subset.coords:
-                    current_dtype = str(subset.coords[name].dtype)
+                    arr = subset.coords[name]
+                    current_dtype = str(arr.dtype)
+    
+                    if not is_numeric_dtype(arr):
+                        logger.warning(f"  Skipping coord '{name}' — non-numeric dtype ({current_dtype})")
+                        continue
+    
                     try:
-                        subset = subset.assign_coords({name: subset.coords[name].astype(dtype)})
+                        subset = subset.assign_coords({name: arr.astype(dtype)})
                         logger.info(f"  coord {name}: {current_dtype} → {dtype}")
                     except Exception as e:
                         logger.warning(
                             f"  Failed to cast coord '{name}' ({current_dtype} → {dtype}): {e}"
                         )
-                
+    
                 # Non data-vars / coords
                 else:
                     logger.warning(f"  Skipping '{name}' — not found in dataset.")

@@ -20,7 +20,7 @@ import xarray as xr
 from pathlib import Path
 import time
 
-from .utils import list_dir, get_instrument_base_url
+from .utils import list_dir, get_instrument_base_url, is_numeric_dtype
 from .cdf_handler import load_cdf_from_url
 from .core import CDAWebDownloader
 from .codegen import generate_script
@@ -449,8 +449,12 @@ class CDAWebGUI(tk.Tk):
         self.selected_dtypes = {}
     
         # Prepare group lists
-        data_vars = list(self.selected_variables)
-        coords = CDAWebGUI._collect_dependent_coords(self.ds_sample, self.selected_variables)
+        #data_vars = list(self.selected_variables)
+        #coords = CDAWebGUI._collect_dependent_coords(self.ds_sample, self.selected_variables)
+        data_vars = [ v for v in self.selected_variables 
+                      if v in self.ds_sample and is_numeric_dtype(self.ds_sample[v]) ]
+        coords = [ c for c in CDAWebGUI._collect_dependent_coords(self.ds_sample, self.selected_variables)
+                   if c in self.ds_sample and is_numeric_dtype(self.ds_sample[c]) ]
     
         # Compute a pleasant width for the name column; use fixed font for neat alignment
         all_names = data_vars + coords if (data_vars or coords) else ["(none)"]

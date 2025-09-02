@@ -9,6 +9,23 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from datetime import datetime
 import re
+import numpy as np
+
+
+
+def is_numeric_dtype(arr) -> bool:
+    """Return True if an xarray DataArray is numeric and castable."""
+    kind = np.dtype(arr.dtype).kind
+    return kind in {"i", "u", "f"}  # int, unsigned int, float
+
+
+
+# might be useful later?
+#def eligible_cast_dtypes(arr):
+#    """Return allowed dtype options based on current dtype."""
+#    if not is_numeric_dtype(arr):
+#        return []  # nothing allowed
+#    return ["float32", "float64", "int32", "int64"]
 
 
 
