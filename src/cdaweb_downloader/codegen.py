@@ -55,7 +55,6 @@ from cdaweb_downloader.core import CDAWebDownloader
 # Initialize the downloader
 downloader = CDAWebDownloader("{base_url}")
 
-print("Starting download...")
 out_folder = downloader.download_and_save_multiple_cdfs(
     start_date="{start_date.strftime('%Y-%m-%d')}",
     end_date="{end_date.strftime('%Y-%m-%d')}",

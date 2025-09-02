@@ -218,6 +218,8 @@ class CDAWebDownloader:
         out_dir = Path(output_dir) if output_dir else Path.cwd()
         out_dir = out_dir / "cached_cdaweb_netcdfs"
         out_dir.mkdir(parents=True, exist_ok=True)
+        
+        logger.info("Starting download...")
     
         # --- Collect all candidate files first ---
         file_list = []
