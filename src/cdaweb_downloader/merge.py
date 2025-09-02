@@ -220,6 +220,8 @@ def align_datasets_over_time_dims(
             
             # throw away dataset if time_dim has length 0
             if ds[time_dim].size == 0:
+                logger.warning(f"  dataset found with length-0 on dim '{time_dim}'"
+                               " - dropping this dataset")
                 continue
             
             # Otherwise, drop dims and keep
