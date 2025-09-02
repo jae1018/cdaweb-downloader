@@ -632,12 +632,12 @@ class CDAWebGUI(tk.Tk):
             )
             if output_path:
                 code = generate_script(
-                    base_url=self.base_url,
-                    start_date=self.date_range[0],
-                    end_date=self.date_range[1],
-                    variables=self.selected_variables,
-                    output_dir="{self.output_dir}",   # placeholder
-                    dtypes=self.selected_dtypes
+                    base_url   = self.base_url,
+                    start_date = self.date_range[0],
+                    end_date   = self.date_range[1],
+                    variables  = self.selected_variables,
+                    output_dir = self.output_dir,
+                    dtypes     = self.selected_dtypes
                 )
                 with open(output_path, "w") as f:
                     f.write(code)
