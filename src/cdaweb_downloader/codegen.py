@@ -45,7 +45,7 @@ def generate_script(
     dtype_arg = f",\n    dtypes={dtypes}" if dtypes else ""
     
     # Normalize output_dir to plain string
-    output_dir_str = str(Path(output_dir).expanduser().resolve())
+    output_dir_str = Path(output_dir).expanduser().resolve().as_posix()
 
     # Always do the download
     script = f"""\
