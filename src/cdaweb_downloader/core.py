@@ -2,30 +2,35 @@
 Core logic for downloading and merging CDF files from CDAWeb.
 
 Notes to self for later implementation:
-  1) Have logger.py also absorb all the warnings spit out by cdflib in
-     cdf_handler.py
-  2) Compressing the final merged dataset is reasonably possible but adds
+    
+--- IMPORTANT ---
+  1) Compressing the final merged dataset is reasonably possible but adds
      extra time based on compression levels for netcdf (for 10GB, could be
      like 30 mins to 1 hour but would compress to size of ~3 or 4 GB).
      Could infer time_dims from codes in merge.py, chunk over those, then
      specify the encoding dict in the .to_netcdf() function (a complevel of
      four [balanced between 1 and 9] would probably be the most sensible).
-  3) After merging, delete folder of cached cdfs? Something to consider.
-  4) Add option for categorical encoding for some float variables (but this
-     would only really be useful in cases of energy bins or something, would
-     be useless for things like mag, velocity, temp measurements, etc)
-  5) Sometimes CDFs will record mis-aligned info between a data vari
+  2) Sometimes CDFs will record mis-aligned info between a data vari
      and a dim (e.g. a dim 'record0' has length 0 but a data_var that depends
      on it has length 1). In merge.py, should eventually make a function
      that chekcs the integrity of an entire dataset based on data-var /
      coord and dim alignment.
-  6) Instead of just saying "dataset" etc in merge.py logger statements,
+                                                                   
+--- SECONDARY ---
+  1) Have logger.py also absorb all the warnings spit out by cdflib in
+     cdf_handler.py
+  2) After merging, delete folder of cached cdfs? Something to consider.
+  3) Add option for categorical encoding for some float variables (but this
+     would only really be useful in cases of energy bins or something, would
+     be useless for things like mag, velocity, temp measurements, etc)
+  4) Instead of just saying "dataset" etc in merge.py logger statements,
      better to just print the path to the offending file.
-  7) The online directory viewer shows the first four listed hyperlink
+  5) The online directory viewer shows the first four listed hyperlink
      options as valid choices in the directory list. Just hide those
      choices in the future.
-  8) Make scroll wheel work for variables-to-keep list in Step 1.
-  9) Make a back button?
+  6) Make scroll wheel work for variables-to-keep list in Step 1.
+  7) Make a back button?
+            
 """
 
 from datetime import datetime
