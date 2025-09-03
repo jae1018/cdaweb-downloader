@@ -246,8 +246,9 @@ class CDAWebDownloader:
                 logger.warning("tqdm not installed; proceeding without progress bar.")
     
         # --- Download loop ---
-        for name, url in file_list:
+        for idx, (name, url) in enumerate(file_list):
             try:
+                logger.info("Attempting download for file {idx+1} / {len(file_list}")
                 self._download_and_save_single_cdf(
                     url, 
                     selected_variables, 
