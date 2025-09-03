@@ -246,7 +246,7 @@ class CDAWebDownloader:
         # --- Download loop ---
         for idx, (name, url) in enumerate(file_list):
             try:
-                logger.info("Attempting download for file {idx+1} / {len(file_list}")
+                logger.info(f"Attempting download for file {idx+1} / {len(file_list)}")
                 self._download_and_save_single_cdf(
                     url, 
                     selected_variables, 
