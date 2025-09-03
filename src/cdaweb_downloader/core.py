@@ -15,6 +15,8 @@ Notes to self for later implementation:
      on it has length 1). In merge.py, should eventually make a function
      that chekcs the integrity of an entire dataset based on data-var /
      coord and dim alignment.
+  3) Sometimes cdfs may rarely have non-unique times - in cases like this,
+     it's probably better to just drop both.
                                                                    
 --- SECONDARY ---
   1) Have logger.py also absorb all the warnings spit out by cdflib in
