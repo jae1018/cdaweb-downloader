@@ -28,6 +28,9 @@ Notes to self for later implementation:
      coord and dim alignment.
   8) Instead of just saying "dataset" etc in merge.py logger statements,
      better to just print the path to the offending file.
+  9) The online directory viewer shows the first four listed hyperlink
+     options as valid choices in the directory list. Just hide those
+     choices in the future.
 """
 
 from datetime import datetime
