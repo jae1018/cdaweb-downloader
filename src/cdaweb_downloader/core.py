@@ -2,35 +2,30 @@
 Core logic for downloading and merging CDF files from CDAWeb.
 
 Notes to self for later implementation:
-  1) When convertable data-types is shown for data vars and coords, it also
-     offers to convert strs to numeric type - this should not be permitted!
-     Also, be aware of datetime data types
-  2) Have logger.py also absorb all the warnings spit out by cdflib in
+  1) Have logger.py also absorb all the warnings spit out by cdflib in
      cdf_handler.py
-  3) Modify output_dir in codegen.py so that the printed path for the user
-     is based on Path rather than outright str - that way, it will be easier
-     for Windows users (e.g. something like Path.home() / "Documents" / "project"
-     instead of /Users/me/Documents/project )
-  4) Compressing the final merged dataset is reasonably possible but adds
+  2) Compressing the final merged dataset is reasonably possible but adds
      extra time based on compression levels for netcdf (for 10GB, could be
      like 30 mins to 1 hour but would compress to size of ~3 or 4 GB).
      Could infer time_dims from codes in merge.py, chunk over those, then
      specify the encoding dict in the .to_netcdf() function (a complevel of
      four [balanced between 1 and 9] would probably be the most sensible).
-  5) After merging, delete folder of cached cdfs? Something to consider.
-  6) Add option for categorical encoding for some float variables (but this
+  3) After merging, delete folder of cached cdfs? Something to consider.
+  4) Add option for categorical encoding for some float variables (but this
      would only really be useful in cases of energy bins or something, would
      be useless for things like mag, velocity, temp measurements, etc)
-  7) Sometimes CDFs will record mis-aligned info between a data vari
+  5) Sometimes CDFs will record mis-aligned info between a data vari
      and a dim (e.g. a dim 'record0' has length 0 but a data_var that depends
      on it has length 1). In merge.py, should eventually make a function
      that chekcs the integrity of an entire dataset based on data-var /
      coord and dim alignment.
-  8) Instead of just saying "dataset" etc in merge.py logger statements,
+  6) Instead of just saying "dataset" etc in merge.py logger statements,
      better to just print the path to the offending file.
-  9) The online directory viewer shows the first four listed hyperlink
+  7) The online directory viewer shows the first four listed hyperlink
      options as valid choices in the directory list. Just hide those
      choices in the future.
+  8) Make scroll wheel work for variables-to-keep list in Step 1.
+  9) Make a back button?
 """
 
 from datetime import datetime
