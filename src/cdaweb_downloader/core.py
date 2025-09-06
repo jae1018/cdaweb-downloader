@@ -17,6 +17,15 @@ Notes to self for later implementation:
      coord and dim alignment.
   3) Sometimes cdfs may rarely have non-unique times - in cases like this,
      it's probably better to just drop both.
+  4) Some datasets (e.g. FGM data for MMS) have quite tight time res (~0.1s
+     for survey data) - it may be necessary to introduce an avg-down scheme
+     for such data sizes (~450GB for 10 years of data). Part of this should
+     involve a new GUI window that asks the user for the desired time res
+     and possibly also have them indicate which variable is the time (although
+     might could just infer this from first dims along all the vars). This will
+     also possibly require the user to specify some max and min values as well
+     as quality-flag control.
+    
                                                                    
 --- SECONDARY ---
   1) Have logger.py also absorb all the warnings spit out by cdflib in
@@ -41,7 +50,7 @@ import xarray as xr
 from pathlib import Path
 
 from .cdf_handler import load_cdf_from_url, subset_dataset, collapse_all_attrs_to_json, clean_object_coords
-from .utils import list_dir, extract_date_from_filename, is_numeric_dtype
+from .utils import is_numeric_dtype, crawl_for_cdfs
 from .merge import align_datasets_over_time_dims
 from .logger import logger
 
@@ -57,7 +66,13 @@ class CDAWebDownloader:
             base_url (str): Instrument-level URL like:
                 https://cdaweb.gsfc.nasa.gov/pub/data/ace/mag/level_2_cdaweb/mfi_h0
         """
-        self.base_url = base_url.rstrip("/")
+        ##self.base_url = base_url.rstrip("/")
+        # Normalize base_url to always end with '/'.
+        # Ensures urljoin treats it as a directory (critical for MMS-like
+        # directory structures e.g. YYYY/MM/{cdfs}).
+        if not base_url.endswith("/"):
+            base_url += "/"
+        self.base_url = base_url
     
     
     
@@ -227,15 +242,7 @@ class CDAWebDownloader:
         logger.info("Starting download...")
     
         # --- Collect all candidate files first ---
-        file_list = []
-        for year in range(start_date.year, end_date.year + 1):
-            year_url = f"{self.base_url}/{year}/"
-            for name, url in list_dir(year_url):
-                if not name.endswith(".cdf"):
-                    continue
-                file_date = extract_date_from_filename(name)
-                if file_date and (start_date <= file_date <= end_date):
-                    file_list.append((name, url))
+        file_list = crawl_for_cdfs(self.base_url, start_date, end_date)
     
         total_files = len(file_list)
         completed = 0
