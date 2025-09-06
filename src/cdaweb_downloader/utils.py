@@ -13,6 +13,36 @@ import numpy as np
 
 
 
+def crawl_for_cdfs(url: str, start_date, end_date) -> list[tuple[str, str]]:
+    """
+    Recursively descend CDAWeb directories until .cdf files are found.
+    Collects only those with dates in [start_date, end_date].
+    """
+    entries = list_dir(url)
+    cdf_files = []
+
+    # Partition: files vs subdirs
+    subdirs = []
+    for name, full_url in entries:
+        if name.lower().endswith(".cdf"):
+            file_date = extract_date_from_filename(name)
+            if file_date and start_date <= file_date <= end_date:
+                cdf_files.append((name, full_url))
+        elif name.endswith("/"):
+            subdirs.append(full_url)
+
+    # If we already found .cdf files here, stop recursion
+    if cdf_files:
+        return cdf_files
+
+    # Otherwise, go deeper
+    for sub in subdirs:
+        cdf_files.extend(crawl_for_cdfs(sub, start_date, end_date))
+
+    return cdf_files
+
+
+
 def is_numeric_dtype(arr) -> bool:
     """Return True if an xarray DataArray is numeric and castable."""
     kind = np.dtype(arr.dtype).kind
@@ -30,6 +60,13 @@ def is_numeric_dtype(arr) -> bool:
 
 
 def list_dir(url):
+    """
+    List the directory at url using BeautifulSoup
+    
+    Note that in the CDAWeb directory, the first 5 hyperlinks listed will
+    not correspond to cdfs (add more info about that later) - so just skip
+    the first 5!
+    """
     response = requests.get(url)
     response.raise_for_status()
     soup = BeautifulSoup(response.text, 'html.parser')
@@ -39,7 +76,7 @@ def list_dir(url):
         if href and href != '../':
             full_url = urljoin(url, href)
             entries.append((href, full_url))
-    return entries
+    return entries[5:]   # done to avoid top-of-page hyperlink bullshit!
 
 
 
