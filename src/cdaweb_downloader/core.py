@@ -39,11 +39,8 @@ Notes to self for later implementation:
      be useless for things like mag, velocity, temp measurements, etc)
   4) Instead of just saying "dataset" etc in merge.py logger statements,
      better to just print the path to the offending file.
-  5) The online directory viewer shows the first four listed hyperlink
-     options as valid choices in the directory list. Just hide those
-     choices in the future.
-  6) Make scroll wheel work for variables-to-keep list in Step 1.
-  7) Make a back button?
+  5) Make scroll wheel work for variables-to-keep list in Step 1.
+  6) Make a back button?
             
 """
 
