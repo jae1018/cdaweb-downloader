@@ -67,16 +67,37 @@ def list_dir(url):
     not correspond to cdfs (add more info about that later) - so just skip
     the first 5!
     """
+    
+    # gotta be a better way to do this - but there's these links at the top
+    # that should be ignored
+    bad_links = [
+        '?C=N;O=D',
+        '?C=M;O=A',
+        '?C=S;O=A',
+        "Parent Directory"
+    ]
+    
     response = requests.get(url)
     response.raise_for_status()
     soup = BeautifulSoup(response.text, 'html.parser')
     entries = []
-    for link in soup.find_all('a'):
+    for link in soup.find_all('a'):        
+        
+        # confirm that link does not contain substr involving any of bad
+        # link fragments above
+        bad_link_found = False
+        for bad_link in bad_links:
+            if bad_link in str(link):
+                bad_link_found = True
+                break
+        if bad_link_found:
+            continue
+        
         href = link.get('href')
         if href and href != '../':
             full_url = urljoin(url, href)
             entries.append((href, full_url))
-    return entries[5:]   # done to avoid top-of-page hyperlink bullshit!
+    return entries
 
 
 
