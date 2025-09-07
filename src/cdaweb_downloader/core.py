@@ -25,6 +25,9 @@ Notes to self for later implementation:
      might could just infer this from first dims along all the vars). This will
      also possibly require the user to specify some max and min values as well
      as quality-flag control.
+  5) Update code so that it correctly interprets dates in files that have
+     hour, minute, second info (having issue with mms fpi/dis-moms b/c they
+     look like mms1_fpi_fast_l2_dis-moms_20151130000000_v3.4.0.nc)
     
                                                                    
 --- SECONDARY ---
