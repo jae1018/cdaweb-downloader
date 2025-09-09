@@ -55,7 +55,17 @@ Notes to self for later implementation:
   6) Make a back button?
   7) Show the dataarray attr info next to var name in a presentable way? Maybe
      one could hover over it and it shows it in a box
-            
+
+
+--- DEBUG ---
+  1) Failing to merge at end wioth cluster HIA data, something about missing
+     labels? Looks like those labels were actually additional data_vars to
+     select... should just replace missing labels with dummy labels in
+     cases like this.
+  2) Have issue with running GUI and finishing merge after downloading
+     *while another script is running*. Might be just windows thing though?
+  3) Sometimes "Next" buttons are not visible until screen has been
+     widened enough.
 """
 
 from datetime import datetime
