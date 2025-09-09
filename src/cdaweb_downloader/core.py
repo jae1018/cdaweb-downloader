@@ -32,6 +32,14 @@ Notes to self for later implementation:
      another variable only - which means their first dimension is not time!
      Should more carefully infer what the time dims are when aligning datasets
      after everything is downloaded (this example comes from cluster fgm data).
+  7) Support asynch downloads / multiple large batch downloads being started
+     from the same session (e.g. user starts downloads for FGM data, then
+     also starts it next for STATE data, etc).
+  8) Consider making small set of stat_utils for resampling or averaging down
+     data? Don't want to accept too much responsibility for that here (since
+     that's more of a user responsibility), but these isses keep coming up,
+     and some high time res (e.g. MMS) data will likely have to be avg'd
+     down anyway...
     
                                                                    
 --- SECONDARY ---
@@ -45,6 +53,8 @@ Notes to self for later implementation:
      better to just print the path to the offending file.
   5) Make scroll wheel work for variables-to-keep list in Step 1.
   6) Make a back button?
+  7) Show the dataarray attr info next to var name in a presentable way? Maybe
+     one could hover over it and it shows it in a box
             
 """
 
