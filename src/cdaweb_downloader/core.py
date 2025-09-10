@@ -49,6 +49,8 @@ Notes to self for later implementation:
      OS after some amount of time or after shutting down and restarting.
      Maybe I can safely delete each temp after processing (if I have
      permissions)?
+ 10) Sometimes saving datasets to disk may fail mid-procedure - add try-catch
+     to catch when those fails happen (something like NetCDF Error?)
     
                                                                    
 --- SECONDARY ---
@@ -371,6 +373,7 @@ class CDAWebDownloader:
         # compute=True, engine='netcdf4' means that contents are stream
         # from original files to currently-generated cumulative file,
         # saving resources on RAM (all files don't need to be loaded at once!)
+        ####### add a dask Progress bar here later
         final_ds.to_netcdf(merged_ds_path, compute=True, engine="netcdf4")
     
         logger.info(f"Merged dataset saved at {merged_ds_path}")
