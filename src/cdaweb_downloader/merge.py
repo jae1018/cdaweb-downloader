@@ -157,14 +157,49 @@ def _remove_datasets_with_bad_dims(
     ] )[0]
     
     # log info on if any datasets were removed
-    logger.info(
-        f'{len(ds_list) - matching_dims_idxs.size} datasets found with '
-        'not-matching dimensions - removing these from time concatenation.'
-    )
+    num_datasets_with_bad_dims = len(ds_list) - matching_dims_idxs.size
+    if num_datasets_with_bad_dims > 0:
+        logger.info(
+            f'{num_datasets_with_bad_dims} datasets found with '
+            'not-matching dimensions - removing these from time concatenation.'
+        )
     
     return [ ds_list[i] for i in range(len(ds_list)) if i in matching_dims_idxs ]
 
 
+
+def _is_healthy_dataset(
+        ds : xr.Dataset
+) -> bool:
+    """
+    Returns True if dataset is considered "healthy", i.e. satisfies the criteria
+        1) all data vars sizes match their dim sizes
+                (e.g. data_1d ('time') should have same length as 'time' )
+        2) each dim should have size > 0
+    
+    Note that this function looks at a single dataset *in isolation*. There
+    can be additional issues that are only discovered when looking at
+    multiple datasets at once (see _remove_datasets_with_bad_dims).
+    """
+    
+    # Check condition (1)
+    for name, da in ds.data_vars.items():
+       for dim, size in da.sizes.items():
+           if size != ds.dims[dim]:
+               # show this warning at a high verbosity level later
+               #logger.warning("  Data-var size and Dim size disagreement found"
+               #               " - discarding dataset")
+               return False
+           
+    # Check condition (2)
+    if any(size == 0 for name, size in ds.sizes.items()):
+        # this one too
+        #logger.warning("  zero-length dim found in dataset - discarding")
+        return False
+    
+    return True
+    
+    
 
 def align_datasets_over_time_dims(
         ds_list: list[xr.Dataset]
@@ -202,6 +237,9 @@ def align_datasets_over_time_dims(
         _track_first_dim(ds_list[:1])[0].values()
     ))
     
+    #import pdb
+    #pdb.set_trace()
+    
     # for each time name, need to build list of datasets where all other time
     # names are dropped
     combined_datasets = []
@@ -210,18 +248,13 @@ def align_datasets_over_time_dims(
         
         # build list of datasets, all only containing data involving
         # current time_dim in for loop
-        ##ds_list_single_time_dim = [ ds.drop_dims(other_time_dims, errors="ignore") 
-        ##                            for ds in ds_list ]
-        
-        ## If time_dim has length 0 (but other variables hve non-zero length),
-        ## then drop.dims(other_time_dims) will throw error - fix better later!
         ds_list_single_time_dim = []
+        bad_datasets_found = 0
         for ds in ds_list:
             
             # throw away dataset if time_dim has length 0
-            if ds[time_dim].size == 0:
-                logger.warning(f"  dataset found with length-0 on dim '{time_dim}'"
-                               " - dropping this dataset")
+            if not _is_healthy_dataset(ds):
+                bad_datasets_found += 1
                 continue
             
             # Otherwise, drop dims and keep
@@ -230,19 +263,30 @@ def align_datasets_over_time_dims(
                     ds.drop_dims(other_time_dims, errors="ignore") 
                 )
                 
+        # notify logger how many bad datasets found
+        logger.info(f"{bad_datasets_found} \'unhealthy\' datasets discarded")
         
         # purge datasets from list if dims don't match
         ds_list_single_time_dim = _remove_datasets_with_bad_dims(
                                         ds_list_single_time_dim
         )
         
+        # notify logger if no datasets left to concat ...
+        if len(ds_list_single_time_dim) == 0:
+            logger.warning("No datasets remaining to concatenate along dim "
+                           f"{time_dim} - returning empty dataset")
+            concat_ds = xr.Dataset()
+        # ... otherwise, safely concatenate list of datasets along time_dim
+        else:
+            concat_ds = xr.concat(
+                            ds_list_single_time_dim, 
+                            dim    = time_dim, 
+                            coords = "minimal", 
+                            join   = "override"
+            )
+        
         # concat dataset along time_dim then save to list
-        combined_datasets.append( 
-            xr.concat(ds_list_single_time_dim, 
-                      dim    = time_dim, 
-                      coords = "minimal", 
-                      join   = "override")
-        )
+        combined_datasets.append( concat_ds )
     
     # Merge all concatenated datasets into one
     return xr.merge(combined_datasets, compat='no_conflicts')

@@ -40,6 +40,15 @@ Notes to self for later implementation:
      that's more of a user responsibility), but these isses keep coming up,
      and some high time res (e.g. MMS) data will likely have to be avg'd
      down anyway...
+  9) Find appropriate way to warn user that raw cdfs are save as temp files
+     first and then are subsetted and processed before finally being cached
+     on the local machine - so if someone downloads multiple large sets of
+     data (e.g 20 years of particle data, wave data, and mag field data),
+     this can end up costing a lot of "invisible" hard disk memory b/c
+     of all the files saved in temp. These are usually safely deleted by the
+     OS after some amount of time or after shutting down and restarting.
+     Maybe I can safely delete each temp after processing (if I have
+     permissions)?
     
                                                                    
 --- SECONDARY ---
@@ -55,6 +64,15 @@ Notes to self for later implementation:
   6) Make a back button?
   7) Show the dataarray attr info next to var name in a presentable way? Maybe
      one could hover over it and it shows it in a box
+  8) tqdm load bar chooses the total number of files to download as the
+     number of days between given start and end dates - not on the actual
+     number of files in the server! - It also seems like there are 
+     miscalculations when their are certain time formats in the cdf filenames
+     (some related issue is happening when downloading THEMIS-A ESA - 
+      getting total number of files on order 25k!)
+  9) Warn user on variable selection to ask if they selected the time variable -
+     sometimes the actual times are given as a data variable instead of a dim
+     / coordinate!
 
 
 --- DEBUG ---
@@ -73,7 +91,7 @@ from dateutil.parser import parse as date_parse
 import xarray as xr
 from pathlib import Path
 
-from .cdf_handler import load_cdf_from_url, subset_dataset, collapse_all_attrs_to_json, clean_object_coords
+from .cdf_handler import load_cdf_from_url, subset_dataset, collapse_all_attrs_to_json, cast_coords_obj2str
 from .utils import is_numeric_dtype, crawl_for_cdfs
 from .merge import align_datasets_over_time_dims
 from .logger import logger
@@ -334,9 +352,12 @@ class CDAWebDownloader:
             # open with chunking
             ds = xr.open_dataset(f, engine="netcdf4", chunks={})
             # sanitize coords
-            ds = clean_object_coords(ds)
+            ds = cast_coords_obj2str(ds)
             # save to list
             ds_list.append(ds)
+        
+        #import pdb
+        #pdb.set_trace()
         
         # align datasets over time
         final_ds = align_datasets_over_time_dims(ds_list)

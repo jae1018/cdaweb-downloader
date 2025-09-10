@@ -46,7 +46,7 @@ def collapse_all_attrs_to_json(ds: xr.Dataset) -> xr.Dataset:
 
 
 
-def clean_object_coords(ds: xr.Dataset) -> xr.Dataset:
+def cast_coords_obj2str(ds: xr.Dataset) -> xr.Dataset:
     """Convert object-dtype coords to strings for cross-platform consistency."""
     for v in ds.coords:
         if ds[v].dtype == object:
