@@ -51,6 +51,12 @@ Notes to self for later implementation:
      permissions)?
  10) Sometimes saving datasets to disk may fail mid-procedure - add try-catch
      to catch when those fails happen (something like NetCDF Error?)
+ 11) Add dependency on spacepy / pyspedas so that can use their XYZ ->
+     GSM transform utilities?
+ 12) When user clicks on cdf to download, maybe also download 2 or 3 other
+     cdfs at random through that instruments database and confirm that
+     data_vars and coords all match up, so can warn user if they don't?
+     
     
                                                                    
 --- SECONDARY ---
@@ -75,6 +81,10 @@ Notes to self for later implementation:
   9) Warn user on variable selection to ask if they selected the time variable -
      sometimes the actual times are given as a data variable instead of a dim
      / coordinate!
+ 10) Given that a lot of xarray functions and manipulation is dask-backed,
+     could probably ask user to specify a "RAM-limit" when preparing datasets
+     since could likely estimate memory needed as 2 x dataset size and
+     then auto-chunk time dimensions appropriately
 
 
 --- DEBUG ---
@@ -86,6 +96,21 @@ Notes to self for later implementation:
      *while another script is running*. Might be just windows thing though?
   3) Sometimes "Next" buttons are not visible until screen has been
      widened enough.
+  4) When downloading RBSPA EFW_L3 with the 'eclipse_flag_labl' and
+     'charging_flag_labl' varibles, downloader just said "failed to download
+     file" with a message like thi:
+       2025-09-10 21:41:37 [INFO] Downloading 
+       https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbspa/l3/efw/2014/rbspa_efw-l3_20140110_v04.cdf
+       2025-09-10 21:41:38 [ERROR] Failed to download
+       https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbspa/l3/efw/2014/rbspa_efw-l3_20140110_v04.cdf: 
+       'eclipse_flag_labl'
+     So make way to now just fail if label is not present?
+     Actually, found the problem - they decided to change variables names
+     mid-mission????? I looked at some of the earliest cdfs in 2012 but these
+     were from 2014. I'm not sure how to account for something like this though...
+  5) Downloading ESA data for THEMIS-D from 2007 to 2025 caused code to
+     "find" 44,575 files to install - but the *exact* same code for THEMIS-E
+     discovered the correct amount of ~6.3k... Not sure what causes thjis yet
 """
 
 from datetime import datetime
