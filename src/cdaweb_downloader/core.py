@@ -56,6 +56,12 @@ Notes to self for later implementation:
  12) When user clicks on cdf to download, maybe also download 2 or 3 other
      cdfs at random through that instruments database and confirm that
      data_vars and coords all match up, so can warn user if they don't?
+ 13) Should add some starter message that if users aren't sure where to find
+     a certain data product, they should navigate to it on CDAWeb first
+     b/c they have a good visualization of data products related to a certain
+     variable of interest (e.g. electric fields may be measured by multiple
+     instruments, so all of those will be listed). Link is just:
+       https://cdaweb.gsfc.nasa.gov/
      
     
                                                                    
@@ -85,6 +91,11 @@ Notes to self for later implementation:
      could probably ask user to specify a "RAM-limit" when preparing datasets
      since could likely estimate memory needed as 2 x dataset size and
      then auto-chunk time dimensions appropriately
+ 11) Sometimes not all of the cdf skeleton tables are captured in attrs (these
+     can be found on CDAWeb by clicking on the "Metadata" hyperlink associated
+     with any variable). It could be interesting to pass this info (using
+     an LLM-API like chatgpt or claude) and ask for a summary - would only
+     cost about $0.01 for every 10 summarizations, even over very large tables.
 
 
 --- DEBUG ---
@@ -109,8 +120,10 @@ Notes to self for later implementation:
      mid-mission????? I looked at some of the earliest cdfs in 2012 but these
      were from 2014. I'm not sure how to account for something like this though...
   5) Downloading ESA data for THEMIS-D from 2007 to 2025 caused code to
-     "find" 44,575 files to install - but the *exact* same code for THEMIS-E
-     discovered the correct amount of ~6.3k... Not sure what causes thjis yet
+     "find" 44,575 files to install instead of what's supposed to be ~6.3k
+  6) Looking at Cluster1 / PP / EDI, some cdfs return error b/c they can't
+     properly be loaded into xarray datasets, and others can? Need to fix
+     so that get some kind of preview instead of just error
 """
 
 from datetime import datetime
@@ -201,10 +214,10 @@ class CDAWebDownloader:
     
                     try:
                         subset[name] = arr.astype(dtype)
-                        logger.info(f"  var {name}: {current_dtype} → {dtype}")
+                        logger.info(f"  var {name}: {current_dtype} -> {dtype}")
                     except Exception as e:
                         logger.warning(
-                            f"  Failed to cast var '{name}' ({current_dtype} → {dtype}): {e}"
+                            f"  Failed to cast var '{name}' ({current_dtype} -> {dtype}): {e}"
                         )
     
                 # Coordinates
@@ -221,7 +234,7 @@ class CDAWebDownloader:
                         logger.info(f"  coord {name}: {current_dtype} → {dtype}")
                     except Exception as e:
                         logger.warning(
-                            f"  Failed to cast coord '{name}' ({current_dtype} → {dtype}): {e}"
+                            f"  Failed to cast coord '{name}' ({current_dtype} -> {dtype}): {e}"
                         )
     
                 # Non data-vars / coords
