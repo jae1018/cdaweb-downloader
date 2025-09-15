@@ -62,6 +62,13 @@ Notes to self for later implementation:
      variable of interest (e.g. electric fields may be measured by multiple
      instruments, so all of those will be listed). Link is just:
        https://cdaweb.gsfc.nasa.gov/
+ 14) It might be preferable to make either a separate GUI (or even separate
+     package!) that enables the merging and aligning of data. When it
+     comes to aligning after filtering, don't want user providing arbitrary
+     code / functions, but could let user choose from set of equality / 
+     inequality operators (e.g ">", "<", "!=") followed by choice of
+     data vars (e.g. "quality_flag", "density") and value(s) (e.g
+     2, [0,2], 3.75).
      
     
                                                                    
